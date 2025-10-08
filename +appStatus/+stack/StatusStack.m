@@ -312,6 +312,9 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
 
             % Run the code in a try catch block to capture any errors
             try
+                fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", "Boundaries","inclusive");
+                [~, c]= obj.addCondition("Running", ...
+                    "Message", "Running: " + fcnCallStr);
                 if nargout > 0
                     varargout = cell(1, nargout);
                     [varargout{:}] = fcnHandle(varargin{:});
@@ -324,7 +327,8 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
 
             % See if a warning was thrown by the function
             [w1, c1] = lastwarn;
-            if (~strcmp(w0, w1) || ~strcmp(c0, c1)) && ~strcmp(c1, "MATLAB:callback:error")
+            if (~strcmp(w0, w1) || ~strcmp(c0, c1)) ...
+                    && ~strcmp(c1, "MATLAB:callback:error") % Remove "errors" inside callback
                 obj.addCondition("Warning", "Message", w1);
             end
 

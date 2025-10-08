@@ -4,6 +4,7 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
     properties (SetAccess = protected)
         StatusStack = appStatus.stack.StatusStack.empty(1,0)
         StatusStackListener
+        RunningTimer timer
     end
 
     properties
@@ -37,10 +38,13 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
             tf = true;
         end
 
-
     end
 
     methods (Access = protected)
+        function beforeDisplay(obj)
+            obj.clearRunning();
+        end
+
         function displayRunning(obj, status, ~)
             arguments
                 obj (1,1)
@@ -50,8 +54,24 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
             message = status.Message;
             obj.writeToTerminal(message);
+
+            s = warning();
+            warning("off");
+            stopTimer(obj.RunningTimer);
+
+            warning("off", "MATLAB:timer:deleterunning");
+            obj.RunningTimer = timer("TimerFcn", @(~,~)obj.writeToTerminal(message), ...
+                "Period", 1, "TasksToExecute", inf, "ExecutionMode", "fixedRate");
+            
+            start(obj.RunningTimer);
+            warning(s)
             
         end % displayRunning
+
+        function clearRunning(obj)
+            stopTimer(obj.RunningTimer);
+            obj.PreviousMessage = string(NaN);
+        end
 
         function displayError(obj, status)
             arguments
@@ -116,3 +136,12 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
 end % classdef
 
+function stopTimer(timer)
+
+try
+    stop(timer);
+    delete(timer)
+catch
+end
+
+end

@@ -9,7 +9,7 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
         StatusStack = appStatus.stack.StatusStack.empty(1,0)
         StatusStackListener 
         CancelListener event.listener
-        CancelTimer % Due to know bug - see below
+        CancelTimer timer % Due to know bug - see below
     end
 
     properties (SetAccess = protected)
@@ -187,6 +187,7 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
         function deleteProgressDlg(obj)
             delete(obj.ProgressDlg);
             delete(obj.CancelListener);
+            stopTimer(obj.CancelTimer);
         end
 
         function createProgressDlg(obj)
@@ -197,12 +198,17 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
                 defaultProps = namedargs2cell(defaultProps);
                 obj.ProgressDlg = uiprogressdlg(obj.Figure, 'Indeterminate','on', defaultProps{:});
                 
+                % TODO: Add timer so progress dlg only made/shown after a
+                % delay to avoid flashing the screen
+
                 % This doesn't work - Known bug https://komodo.mathworks.com/main/gecko/view?Record=2984852
                 % obj.CancelListener = addlistener(obj.ProgressDlg, "CancelRequested", "PostSet", @(src, event) obj.notifyStackOfCancel());
+                s = warning();
+                warning("off");
                 stopTimer(obj.CancelTimer);
-                warning("off", "MATLAB:timer:deleterunning");
                 obj.CancelTimer = timer("TimerFcn", @(~,~)obj.checkIfCancelPressed(), "Period", 1, "TasksToExecute", inf, "ExecutionMode", "fixedSpacing");
                 obj.CancelTimer.start();
+                warning(s)
 
             end
 
@@ -277,7 +283,7 @@ function stopTimer(timer)
 
 try
     stop(timer);
-    delete(dimer)
+    delete(timer)
 catch
 end
 
