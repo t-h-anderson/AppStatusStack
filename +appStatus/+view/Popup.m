@@ -123,6 +123,10 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
                     % First time showing the status, so increment the
                     % counter
                     numPopups = obj.numberDialogues(obj.StatusStack);
+
+                    if numPopups > 1
+                        title = title + " (" + numPopups + " alerts)";
+                    end
                     
                     removeStatusFn = @(src, event) obj.completeIfClicked(src, event, status);
                     
@@ -144,7 +148,7 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
                 end
 
                 while status.IsBlocking && obj.StatusStack.CurrentStatus == status
-                    % Wait till user clicks ok
+                    % Wait till user clicks OK
                     drawnow
                 end
             end

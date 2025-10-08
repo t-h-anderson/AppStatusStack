@@ -298,7 +298,7 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
         function varargout = run(obj, fcnHandle, varargin)
             arguments
                 obj (1,1) appStatus.stack.StatusStack
-                fcnHandle
+                fcnHandle (1,1) function_handle
             end
             arguments (Repeating)
                 varargin
