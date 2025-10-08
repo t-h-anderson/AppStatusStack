@@ -1,5 +1,5 @@
-function installAppStatusStack(nvp)
-% Install method to make sure AppStatusStack is installed and up-to-date
+function installappStatus(nvp)
+% Install method to make sure appStatus is installed and up-to-date
 % Include in other projects' startup to automatically install this
 % dependency
 % Note: Add default toolbox path is "dependencies" folder
@@ -14,7 +14,7 @@ requiredVersion= nvp.RequiredVersion;
 % Get installed toolbox version
 toolboxes = matlab.addons.toolbox.installedToolboxes;
 toolboxNames = string({toolboxes.Name});
-installedIdx = contains(toolboxNames, "AppStatusStack");
+installedIdx = contains(toolboxNames, "appStatus");
 
 if any(installedIdx) 
     installedVersion = toolboxes(installedIdx).Version;
@@ -24,7 +24,7 @@ end
 
 % Return if toolbox is installed and it matches the required version
 if any(installedIdx) && installedVersion == requiredVersion
-    fprintf("AppStatusStack (Ver. %s) matches requirement.\n", requiredVersion);
+    fprintf("appStatus (Ver. %s) matches requirement.\n", requiredVersion);
     return
 end
 
@@ -33,7 +33,7 @@ tbxPath = fullfile(nvp.ToolboxPath, "*.mltbx");
 tbxs = dir(tbxPath);
 
 if isempty(tbxs)
-    error("No AppStatusStack toolboxes available in %s", nvp.ToolboxPath);
+    error("No appStatus toolboxes available in %s", nvp.ToolboxPath);
 end
 
 % Get list of available versions
@@ -44,14 +44,14 @@ if requiredVersion == ""
     [maxVersion, idx] = maxVer(vers);    
     
     if maxVersion == installedVersion
-        fprintf("AppStatusStack up-to-date (Ver. %s).\n", maxVersion);
+        fprintf("appStatus up-to-date (Ver. %s).\n", maxVersion);
         return
     end
 else
     idx = (vers == requiredVersion);
     
     if ~any(idx)
-        error("AppStatusStack (Ver. %s) not found in %s.", nvp.RequiredVersion, nvp.ToolboxPath)
+        error("appStatus (Ver. %s) not found in %s.", nvp.RequiredVersion, nvp.ToolboxPath)
     end 
 end
     
@@ -59,7 +59,7 @@ tbxName = tbxs(idx).name;
 latestTbxPath = fullfile(tbxs(idx).folder, tbxName);
 
 matlab.addons.toolbox.installToolbox(latestTbxPath);
-fprintf("AppStatusStack (Ver. %s) installed.\n", vers(idx));
+fprintf("appStatus (Ver. %s) installed.\n", vers(idx));
 
 end
 

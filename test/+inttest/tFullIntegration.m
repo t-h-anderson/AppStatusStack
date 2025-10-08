@@ -15,7 +15,7 @@ classdef tFullIntegration < matlab.unittest.TestCase
     
     methods
         function createStack(testCase)
-           testCase.Stack = appStatusStack.stack.StatusStack(); 
+           testCase.Stack = appStatus.stack.StatusStack(); 
         end
         
         function createView(testCase)
@@ -23,7 +23,7 @@ classdef tFullIntegration < matlab.unittest.TestCase
             f = uifigure();
             testCase.addTeardown(@delete, f);
 
-            testCase.StackView = appStatusStack.view.StateViewPopup(f, testCase.Stack);
+            testCase.StackView = appStatus.view.Popup(f, testCase.Stack);
         end
     end
     
@@ -31,20 +31,14 @@ classdef tFullIntegration < matlab.unittest.TestCase
         
         function testError(testCase)
             %DOTEST
-            
-            [~, err] = testCase.Stack.addState(appStatusStack.State.Error, "Message", "My Error Message");
-           
+            [~, err] = testCase.Stack.addCondition(appStatus.Condition.Error, "Message", "My Error Message");
             currentStatus = testCase.Stack.CurrentStatus;
                         
-            while currentStatus.State ~= appStatusStack.State.Idle
+            while ~currentStatus.IsComplete
                 pause(0.5);
                 fprintf('.');
-                
-                currentStatus = testCase.Stack.CurrentStatus;
             end
-            
         end
-           
     end
 end
 
