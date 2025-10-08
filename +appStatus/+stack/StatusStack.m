@@ -58,6 +58,7 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
                 objs (1,:) appStatus.stack.StatusStack
                 condition (1,1) appStatus.Condition = appStatus.Condition.Running
                 nvp.Message (1,1) string = "Running"
+                nvp.MessageShort(1,1) string = string(nan)
                 nvp.IsVisible (1,1) logical = true
                 nvp.IsTemporary (1,:) logical {mustBeScalarOrEmpty} = false
                 nvp.Value (1,1) double = NaN
@@ -72,6 +73,7 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
             end
 
             newStatus = appStatus.Status(condition, nvp.Message, ...
+                "MessageShort", nvp.MessageShort, ...
                 "IsVisible", nvp.IsVisible, ...
                 "Value", nvp.Value, ...
                 "IsTemporary", nvp.IsTemporary, ...
@@ -148,6 +150,8 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
             end
 
             % Remove test infrastructure
+            messageShort = err.message;
+             
             message = getReport(err, "extended");
             message = string(message);
             message = strsplit(message, newline);
@@ -162,7 +166,9 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
             nvpCell = namedargs2cell(nvp);
             [newStatus, cleanupObj] = objs.addCondition("Error", ...
                 "Data", err, ...
-                "Message", message, nvpCell{:});
+                "Message", message, ...
+                "MessageShort", messageShort, ...
+                nvpCell{:});
 
         end
 
@@ -287,6 +293,45 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
                 monitorable (1,1) appStatus.monitorable.Monitorable
             end
             obj.StatusStackMonitorableListeners(end+1) = event.listener(monitorable, "StatusChanged", @(s,e) obj.onMonitorableStatusChanged(s,e));
+        end
+
+        function varargout = run(obj, fcnHandle, varargin)
+            arguments
+                obj (1,1) appStatus.stack.StatusStack
+                fcnHandle
+            end
+            arguments (Repeating)
+                varargin
+            end
+
+            % Store warning state and clear lastwarn
+            s = warning();
+            warning("off");
+            warning(appStatus.util.uuid, appStatus.util.uuid);
+            [w0, c0] = lastwarn;
+
+            % Run the code in a try catch block to capture any errors
+            try
+                if nargout > 0
+                    varargout = cell(1, nargout);
+                    [varargout{:}] = fcnHandle(varargin{:});
+                else
+                   fcnHandle(varargin{:});
+                end
+            catch me
+                obj.addError(me);
+            end
+
+            % See if a warning was thrown by the function
+            [w1, c1] = lastwarn;
+            if (~strcmp(w0, w1) || ~strcmp(c0, c1)) && ~strcmp(c1, "MATLAB:callback:error")
+                obj.addCondition("Warning", "Message", w1);
+            end
+
+            % Turn the warning back to the original state. NOTE: Assumes 
+            % that the function handle didn't change the warn state
+            warning(s);
+
         end
 
     end

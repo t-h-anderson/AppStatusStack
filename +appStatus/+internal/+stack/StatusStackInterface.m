@@ -41,6 +41,8 @@ classdef (Abstract) StatusStackInterface < handle
         % Monitoring
         monitor(obj, montorable)
 
+        run(obj, fcnHandle)
+
         % Util
         tbl = table(obj)
     end

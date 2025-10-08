@@ -133,7 +133,7 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
                     end
 
                     uiconfirm(obj.Figure, ...
-                        status.Message, ...
+                        status.MessageShort, ...
                         title, ...
                         "Options", options, ...
                         "Icon", icon, ...
@@ -143,7 +143,7 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
 
                 end
 
-                while status.IsBlocking && stack.CurrentStatus == status
+                while status.IsBlocking && obj.StatusStack.CurrentStatus == status
                     % Wait till user clicks ok
                     drawnow
                 end
@@ -177,7 +177,7 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
             end
         end
     end
-    
+
     % progress dlg
     methods (Access = protected)
         function deleteProgressDlg(obj)
