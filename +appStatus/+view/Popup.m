@@ -172,11 +172,12 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
                     case "OK"
                         status.complete();
                     case "Close All"
-                        obj.StatusStack.clear();
+                        obj.StatusStack.removeAllStatuses();
                 end
             end
         end
     end
+    
     % progress dlg
     methods (Access = protected)
         function deleteProgressDlg(obj)

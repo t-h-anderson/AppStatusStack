@@ -27,7 +27,8 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
             % Add listener to stack
             standardDisplayFn = @(src, event)obj.standardDisplay();
-            obj.StatusStackListener = listener(obj.StatusStack, "StatusUpdated", standardDisplayFn);
+            obj.StatusStackListener = listener(obj.StatusStack, ...
+                "StatusUpdated", standardDisplayFn);
 
             set(obj, nvp);
         end
@@ -44,7 +45,7 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
             arguments
                 obj (1,1)
                 status (1,1) appStatus.Status
-                ~
+                ~ % No cancellable option for the terminal
             end
 
             message = status.Message;
@@ -94,19 +95,20 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
                 obj (1,1)
                 status (1,1) appStatus.Status
             end
-            
             message = status.Message;
             obj.writeToTerminal(message);
-
         end
 
         function writeToTerminal(obj, message)
             if message ~= obj.PreviousMessage
+                % Only display the message if it's different from the
+                % previous one to avoid spamming
                 disp(message)
             else
+                % Otherwise print a dot for repeated messages to indicate 
+                % a repeating message
                 fprintf(".");
             end
-
             obj.PreviousMessage = message;
         end
 

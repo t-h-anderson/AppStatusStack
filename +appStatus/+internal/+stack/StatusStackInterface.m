@@ -6,10 +6,12 @@ classdef (Abstract) StatusStackInterface < handle
     % updateStatusMessage(obj, status, message)
 
     properties (Abstract, SetAccess = protected)
-        Statuses(:,1) appStatus.Status
+        Statuses(1,:) appStatus.Status
+        StatusListeners (1,:) event.listener
+        StatusStackMonitorableListeners (1,:) event.listener
     end
 
-    properties (Dependent)
+    properties (Abstract, Dependent)
         CurrentStatus appStatus.Status
     end
 
@@ -18,32 +20,30 @@ classdef (Abstract) StatusStackInterface < handle
     end
 
     methods (Abstract)
-
-        clear(obj)
-           
-        updateStatusMessage(obj, status, message)
-            
-        [newStatus, cleanupObj] = addError(obj, error)
+        
+        % Adding
+        [status, cleanupObj] = addCondition(objs, condition, nvp)
 
         [newStatus, cleanupObj] = addStatus(obj, nvp)
 
-        currentStatus = removeStatus(objs, status)
+        [newStatus, cleanupObj] = addError(obj, error)
 
-        currentStatus = removeLastStatus(obj)
+        % Updating
+        updateStatusMessage(obj, status, message)
 
+        % Removal
+        removeStatus(objs, status)
+
+        removeLastStatus(obj)
+
+        removeAllStatuses(obj)
+
+        % Monitoring
+        monitor(obj, montorable)
+
+        % Util
+        tbl = table(obj)
     end
-
-    methods
-        % Get the latest status
-        function value = get.CurrentStatus(obj)
-            if ~isempty(obj.Statuses)
-                value = obj.Statuses(end);
-            else
-                value = obj.Statuses;
-            end
-        end
-
-    end % methods
 
 end
 

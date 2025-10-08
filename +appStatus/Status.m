@@ -66,10 +66,26 @@ classdef Status < matlab.mixin.SetGet
                 notify(objs, "Completed");
             end
         end
-        
+
+        function tbl = table(objs)
+
+            ID = string([objs.ID])';
+            IsVisible = [objs.IsVisible]';
+            Condition = string([objs.Condition])';
+            Message = string([objs.Message])';
+            Value = [objs.Value]';
+            Data = {objs.Data}';
+            IsTemporary = [objs.IsTemporary]';
+            IsBlocking = [objs.IsBlocking]';
+            IsComplete = [objs.IsComplete]';
+
+            tbl = table(ID, IsVisible, Condition, Message, Value, Data, IsTemporary, IsBlocking, IsComplete);
+        end
+
         function delete(objs)
             notify(objs, "Completed");
         end
+
     end % methods
    
 end % classdef
