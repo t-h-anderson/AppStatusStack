@@ -1,28 +1,61 @@
 <deployment-project plugin="plugin.toolbox" plugin-version="1.0">
-  <configuration build-checksum="146845256" file="C:\Users\toma\Work\2020\AppStatusStack\AppStatusStackToolbox.prj" location="C:\Users\toma\Work\2020\AppStatusStack" name="AppStatusStackToolbox" target="target.toolbox" target-name="Package Toolbox">
-    <param.appname>AppStatusStack 1.3</param.appname>
+  <configuration build-checksum="1715706042" file="C:\MATLAB\AppStatusStack\AppStatusStackToolbox.prj" location="C:\MATLAB\AppStatusStack" name="AppStatusStackToolbox" target="target.toolbox" target-name="Package Toolbox">
+    <param.appname>AppStatusStack</param.appname>
     <param.authnamewatermark>Tom Anderson</param.authnamewatermark>
     <param.email>toma@mathworks.com</param.email>
     <param.company>MathWorks</param.company>
-    <param.summary>Creates a viewable stack to set current app status</param.summary>
-    <param.description>Update Version 1.3
-- State is shown when view is created
-- Added push, pop and top methods for those who are used to this terminology with stacks
-- Changed randomString to matlab.lang.internal.uuid
-- Tweaks to accessability of properties and methods
-- Add status now accepts a status as input
-- Added Getting Started.mlx
+    <param.summary>Allows management of app status</param.summary>
+    <param.description>Update Version 1.4.0
 
+State is shown when view is created
+- Renamed state to condition to avoid state/status confusion
+- Removed push, pop and top methods to streamline app
+- Improved popup behaviour:
+  - Only one popup shown at a time
+  - Close all popup options if multiple in stack
+
+Update Version 1.3
+
+State is shown when view is created
+Added push, pop and top methods for those who are used to this terminology with stacks
+Changed randomString to matlab.lang.internal.uuid
+Tweaks to accessability of properties and methods
+Add status now accepts a status as input
+Added Getting Started.mlx
 Warning: Syntax changed for add status. Arguments now as name value pairs.</param.description>
     <param.screenshot />
-    <param.version>1.3</param.version>
-    <param.output>${PROJECT_ROOT}\AppStatusStack 1.3.mltbx</param.output>
+    <param.version>1.4</param.version>
+    <param.output>${PROJECT_ROOT}\AppStatusStack.mltbx</param.output>
     <param.products.name />
     <param.products.id />
     <param.products.version />
     <param.platforms />
     <param.guid>29f22bcb-48a2-43f5-96fb-f950112f2d4a</param.guid>
-    <param.exclude.filters />
+    <param.exclude.filters>% List files contained in your toolbox folder that you would like to exclude
+% from packaging.  Excludes should be listed relative to the toolbox folder.
+% Some examples of how to specify excludes are provided below:
+%
+% A single file in the toolbox folder:
+% .svn
+%
+% A single file in a subfolder of the toolbox folder:
+% example/.svn
+%
+% All files in a subfolder of the toolbox folder:
+% example/*
+%
+% All files of a certain name in all subfolders of the toolbox folder:
+% **/.svn
+%
+% All files matching a pattern in all subfolders of the toolbox folder:
+% **/*.bak
+%
+untitled.m
+test/
+
+% git artefacts
+.git
+.gitignore</param.exclude.filters>
     <param.exclude.pcodedmfiles>true</param.exclude.pcodedmfiles>
     <param.examples />
     <param.demosxml />
@@ -56,7 +89,6 @@ Warning: Syntax changed for add status. Arguments now as name value pairs.</para
       <param.products.id />
       <param.products.version />
       <param.platforms />
-      <param.exclude.filters />
       <param.exclude.pcodedmfiles />
       <param.examples />
       <param.demosxml />
@@ -85,27 +117,24 @@ Warning: Syntax changed for add status. Arguments now as name value pairs.</para
       <file>${PROJECT_ROOT}</file>
     </fileset.rootdir>
     <fileset.rootfiles>
-      <file>${PROJECT_ROOT}\+appStatusStack</file>
-      <file>${PROJECT_ROOT}\.git</file>
+      <file>${PROJECT_ROOT}\+appStatus</file>
       <file>${PROJECT_ROOT}\doc</file>
       <file>${PROJECT_ROOT}\installAppStatusStack.m</file>
       <file>${PROJECT_ROOT}\releases</file>
       <file>${PROJECT_ROOT}\resources</file>
-      <file>${PROJECT_ROOT}\test</file>
     </fileset.rootfiles>
     <fileset.depfun.included />
     <fileset.depfun.excluded />
     <fileset.package />
     <build-deliverables>
-      <file location="${PROJECT_ROOT}" name="AppStatusStack 1.3.mltbx" optional="false">C:\Users\toma\Work\2020\AppStatusStack\AppStatusStack 1.3.mltbx</file>
+      <file location="${PROJECT_ROOT}" name="AppStatusStack.mltbx" optional="false">C:\MATLAB\AppStatusStack\AppStatusStack.mltbx</file>
     </build-deliverables>
     <workflow />
     <matlab>
-      <root>C:\Program Files\MATLAB\R2020a</root>
+      <root>C:\Program Files\MATLAB\R2024b</root>
       <toolboxes>
         <toolbox name="matlabcoder" />
         <toolbox name="embeddedcoder" />
-        <toolbox name="neuralnetwork" />
       </toolboxes>
       <toolbox>
         <matlabcoder>
@@ -116,11 +145,6 @@ Warning: Syntax changed for add status. Arguments now as name value pairs.</para
         <embeddedcoder>
           <enabled>true</enabled>
         </embeddedcoder>
-      </toolbox>
-      <toolbox>
-        <neuralnetwork>
-          <enabled>true</enabled>
-        </neuralnetwork>
       </toolbox>
     </matlab>
     <platform>
