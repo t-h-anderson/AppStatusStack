@@ -1,6 +1,10 @@
+Bug-fix Version 1.4.1
+- Bug fix for clean-up of state stacks
+- Prototype of cancellable progress bar
+
 Update Version 1.4.0
 
-State is shown when view is created
+- State is shown when view is created
 - Renamed state to condition to avoid state/status confusion
 - Removed push, pop and top methods to streamline app
 - Improved popup behaviour:
