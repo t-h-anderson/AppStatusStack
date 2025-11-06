@@ -85,6 +85,9 @@ classdef Status < matlab.mixin.SetGet
         end
 
         function delete(objs)
+            % Complete valid statuses
+            idx = isvalid(objs);
+            objs = objs(idx);
             notify(objs, "Completed");
         end
 
