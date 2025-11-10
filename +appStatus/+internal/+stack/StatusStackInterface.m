@@ -11,6 +11,10 @@ classdef (Abstract) StatusStackInterface < handle
         StatusStackMonitorableListeners (1,:) event.listener
     end
 
+    properties (Abstract, Hidden)
+        ID (1,1) string
+    end
+
     properties (Abstract, Dependent)
         CurrentStatus appStatus.Status
     end
