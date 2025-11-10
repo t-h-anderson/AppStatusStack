@@ -11,8 +11,18 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
         StatusStackMonitorableListeners
     end
 
+    properties (Hidden)
+        ID
+    end
+
     properties (Dependent)
         CurrentStatus
+    end
+
+    methods 
+        function obj = StatusStack()
+            obj.ID = matlab.lang.internal.uuid();
+        end
     end
 
     methods % get/set
@@ -306,6 +316,11 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
 
             % Store warning state and clear lastwarn
             s = warning();
+
+            % Turn the warning back to the original state. NOTE: Assumes 
+            % that the function handle didn't change the warn state
+            cObj = onCleanup(@() warning(s));
+
             warning("off");
             warning(appStatus.util.uuid, appStatus.util.uuid);
             [w0, c0] = lastwarn;
@@ -314,7 +329,7 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
             try
                 fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", "Boundaries","inclusive");
                 [~, c]= obj.addCondition("Running", ...
-                    "Message", "Running: " + fcnCallStr);
+                    "Message", "Running: " + fcnCallStr); %#ok<ASGLU>
                 if nargout > 0
                     varargout = cell(1, nargout);
                     [varargout{:}] = fcnHandle(varargin{:});
@@ -331,10 +346,6 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
                     && ~strcmp(c1, "MATLAB:callback:error") % Remove "errors" inside callback
                 obj.addCondition("Warning", "Message", w1);
             end
-
-            % Turn the warning back to the original state. NOTE: Assumes 
-            % that the function handle didn't change the warn state
-            warning(s);
 
         end
 
