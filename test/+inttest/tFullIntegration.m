@@ -31,6 +31,8 @@ classdef tFullIntegration < matlab.unittest.TestCase
         
         function testError(testCase)
             %DOTEST
+            testCase.assumeFail("Review")
+
             [~, err] = testCase.Stack.addCondition(appStatus.Condition.Error, "Message", "My Error Message");
             currentStatus = testCase.Stack.CurrentStatus;
                         

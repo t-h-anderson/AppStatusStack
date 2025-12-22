@@ -4,6 +4,8 @@ arguments
     nvp.CollectCoverage (1,1) logical = false
 end
 import matlab.unittest.plugins.XMLPlugin
+import matlab.unittest.plugins.CodeCoveragePlugin
+import matlab.unittest.plugins.codecoverage.CoverageReport
 
 % Define relevant folders and file paths.
 artifactsDir = fullfile(testroot, "artifacts");
@@ -19,7 +21,9 @@ runner.addPlugin(XMLPlugin.producingJUnitFormat(junitFile));
 
 % Add coverage plugin, if required.
 if nvp.CollectCoverage
-    % TODO
+    runner.addPlugin(CodeCoveragePlugin.forNamespace("appStatus", ...
+        IncludingInnerNamespaces=true, ...
+        Producing=CoverageReport(coverageDir)));
 end
 
 % Run tests.
