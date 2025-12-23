@@ -26,6 +26,10 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
         Figure
     end
 
+    properties (Access = private)
+        TestCase = appStatus.internal.view.TestCase()
+    end
+
     methods
 
         function obj = Popup(parent, statusStack, nvp)
@@ -159,7 +163,8 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
         function clearPreviousAlert(obj, f)
             % Should only ever have one uialert
             if obj.HasPopup
-                tt = matlab.uitest.TestCase.forInteractiveUse;
+                % See g1622345.
+                tt = obj.TestCase;
                 obj.HasPopup = false; % Avoid triggering the complete if clicked
                 tt.dismissDialog("uiconfirm", f)
                 drawnow

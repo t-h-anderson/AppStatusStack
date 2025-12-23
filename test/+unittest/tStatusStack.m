@@ -94,12 +94,13 @@ classdef tStatusStack < matlab.unittest.TestCase
         function tRemoveLastStatus(testCase)
             S = appStatus.stack.StatusStack();
             S.addCondition(appStatus.Condition.Success, Message="S1");
-            S.addCondition(appStatus.Condition.Success, Message="S2");
+            status = S.addCondition(appStatus.Condition.Success, Message="S2");
 
             S.removeLastStatus();
 
             testCase.verifySize(S.Statuses, [1 2])
             testCase.verifyEqual(S.CurrentStatus.Message, "S1")
+            testCase.verifyTrue(status.IsComplete)
         end
 
         function tCompleteStatus(testCase)
@@ -140,6 +141,17 @@ classdef tStatusStack < matlab.unittest.TestCase
 
             testCase.assertSize(t, [3 9])
             testCase.verifyEqual(t.Condition, ["Idle"; "RunningCancellable"; "Warning"])
+        end
+
+        function tAddError(testCase)
+            S = appStatus.stack.StatusStack();
+            S.addError(MException("a:b:c", "test"));
+
+            testCase.verifyEqual(S.CurrentStatus.Condition, appStatus.Condition.Error)
+            testCase.verifyEqual(S.CurrentStatus.Message, "test")
+            testCase.assertClass(S.CurrentStatus.Data, "MException")
+            testCase.verifyEqual(S.CurrentStatus.Data.identifier, 'a:b:c')
+            testCase.verifyTrue(S.CurrentStatus.IsBlocking)
         end
 
     end
