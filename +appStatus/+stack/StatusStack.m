@@ -117,12 +117,12 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
             % Distribute call to each stack
             if numel(objs) > 1
                 nvpCell = namedargs2cell(nvp);
-                newStatus = cell(numel(objs), 1);
+                newStatus = repelem(newStatus, numel(objs), 1);
                 cleanupObj = cell(numel(objs), 1);
-                for i = 2:numel(objs)
-                    [newStatus{i}, cleanupObj{i}] = objs(i).addStatus(nvpCell{:});
+                for i = 1:numel(objs)
+                    [newStatus(i), cleanupObj{i}] = objs(i).addStatus(newStatus(i), nvpCell{:});
                 end
-                newStatus = [newStatus{:}];
+                % newStatus = [newStatus{:}];
                 cleanupObj = [cleanupObj{:}];
                 return
             elseif isempty(objs)
@@ -199,7 +199,7 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
             elseif numel(objs) > 1
                 for i = 1:numel(objs)
                     obj = objs(i);
-                    obj.updateStatusMessage(status, message);
+                    obj.updateStatusMessage(message, status);
                 end
                 return
             else
@@ -222,6 +222,46 @@ classdef StatusStack < appStatus.internal.stack.StatusStackInterface
                 % Otherwise find it in the stack
                 idx = ([obj.Statuses.ID] == status.ID);
                 obj.Statuses(idx).updateMessage(message);
+            end
+
+        end
+
+        function updateStatusValue(objs, value, status)
+            arguments
+                objs (1,:) appStatus.stack.StatusStack
+                value (1,1) double
+                status (1,1) appStatus.Status
+            end
+
+            % Distribute to each stack
+            if isempty(objs)
+                return
+            elseif numel(objs) > 1
+                for i = 1:numel(objs)
+                    obj = objs(i);
+                    obj.updateStatusValue(value, status);
+                end
+                return
+            else
+                obj = objs;
+            end
+
+            % If no current status, nothing to update
+            currentStatus = obj.CurrentStatus;
+            if isempty(currentStatus)
+                return
+            end
+
+            if currentStatus.ID == status.ID
+                % Quickest to just update the current status
+                obj.CurrentStatus.updateValue(value);
+
+                % Only update if we are at the top of the stack
+                notify(obj, "StatusUpdated");
+            else
+                % Otherwise find it in the stack
+                idx = ([obj.Statuses.ID] == status.ID);
+                obj.Statuses(idx).updateValue(value);
             end
 
         end

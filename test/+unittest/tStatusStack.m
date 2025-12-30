@@ -154,6 +154,54 @@ classdef tStatusStack < matlab.unittest.TestCase
             testCase.verifyTrue(S.CurrentStatus.IsBlocking)
         end
 
+        function tRunCommand(testCase)
+            S = appStatus.stack.StatusStack();
+            result = S.run(@() 1+1);
+
+            testCase.verifyEqual(result, 2)
+            testCase.assertSize(S.Statuses, [1 1])
+            testCase.verifyEqual(S.CurrentStatus.Condition, appStatus.Condition.Idle)
+        end
+
+        function tRunCommandWithWarning(testCase)
+            S = appStatus.stack.StatusStack();
+            S.run(@() warning("test"));
+
+            testCase.assertEqual(S.CurrentStatus.Condition, appStatus.Condition.Warning)
+            testCase.verifyEqual(S.CurrentStatus.Message, "test")
+        end
+
+        function tRunCommandWithError(testCase)
+            S = appStatus.stack.StatusStack();
+            S.run(@() error("test"));
+
+            testCase.assertEqual(S.CurrentStatus.Condition, appStatus.Condition.Error)
+            testCase.verifyEqual(S.CurrentStatus.Data.message, 'test')
+            testCase.verifyTrue(S.CurrentStatus.IsBlocking)
+        end
+
+        function tRunMultipleCommands(testCase)
+            S = appStatus.stack.StatusStack();
+            S.run(@() 1+1);
+            S.run(@() error("test 1"));
+            S.run(@() error("test 2"));
+            S.run(@() 1+1);
+            S.run(@() warning("test"));
+
+            testCase.assertSize(S.Statuses, [1 4])
+            testCase.verifyEqual(S.CurrentStatus.Condition, appStatus.Condition.Warning)
+            testCase.verifyEqual(S.Statuses(2).MessageShort, "test 1")
+        end
+
+        function tRunCommandWithMultipleOutputs(testCase)
+            S = appStatus.stack.StatusStack();
+            [a, b, c] = S.run(@() fileparts("a/b.c"));
+             
+            testCase.verifyEqual(a, "a")
+            testCase.verifyEqual(b, "b")
+            testCase.verifyEqual(c, ".c")
+        end
+
     end
 
 

@@ -60,6 +60,14 @@ classdef Status < matlab.mixin.SetGet
             [objs.Message] = deal(message);
         end
 
+        function updateValue(objs, value)
+            arguments
+                objs (1,:) appStatus.Status
+                value (1,1) double
+            end
+            [objs.Value] = deal(value);
+        end
+
         function complete(objs)
             idx = [objs.IsComplete];
 
