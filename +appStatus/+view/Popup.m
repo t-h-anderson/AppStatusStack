@@ -16,8 +16,6 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
         ProgressDlg matlab.ui.dialog.ProgressDialog
         ProgressDlgStatus (1,:) appStatus.Status
 
-        BlockingDialogues (1,1) logical = true
-
         HasPopup (1,1) logical = false
         PopupStatusToKeep (1,:) appStatus.Status = appStatus.Status
     end
@@ -36,7 +34,6 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
             arguments
                 parent = uifigure
                 statusStack (1,1) appStatus.internal.stack.StatusStackInterface = appStatus.stack.StatusStack
-                nvp.BlockingDialogues (1,1) logical = true
                 nvp.ShowWarnings (1,1) logical = true
                 nvp.ShowErrors (1,1) logical = true
                 nvp.ShowRunning (1,1) logical = true
@@ -46,13 +43,16 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
 
             % Set view parent and stack properties
             obj.Parent = parent;
-            obj.BlockingDialogues = nvp.BlockingDialogues;
+            obj.ShowWarnings = nvp.ShowWarnings;
+            obj.ShowErrors = nvp.ShowErrors;
+            obj.ShowRunning = nvp.ShowRunning;
+            obj.ShowSuccess = nvp.ShowSuccess;
+            obj.ShowIdle = nvp.ShowIdle;
 
             % Add listener to stack
             obj.setStack(statusStack);
 
             obj.standardDisplay();
-
         end
 
         function tf = isVisible(obj)
@@ -119,7 +119,7 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
                 icon (1,1) string = "error"
             end % arguments
 
-            if status.IsVisible && obj.BlockingDialogues
+            if status.IsVisible
 
                 % Display the alert
                 if isvalid(obj.Figure)

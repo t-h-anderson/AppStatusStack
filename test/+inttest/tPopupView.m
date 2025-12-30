@@ -277,6 +277,15 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyEqual(newStack.CurrentStatus.Value, 0.5)
         end
 
+        function tNonVisibileStatus(testCase)
+            % Setting the status as non-visible makes it not appear as a
+            % popup, even if IsBlocking is enabled.
+            testCase.Stack.addCondition(appStatus.Condition.Warning, IsVisible=false, IsBlocking=true);
+            
+            testCase.verifyError(@() testCase.dismissDialog("uiconfirm", testCase.Figure), ...
+                "MATLAB:uiautomation:Driver:NoConfirmationDialogsFound")
+        end
+
 
     end
 end

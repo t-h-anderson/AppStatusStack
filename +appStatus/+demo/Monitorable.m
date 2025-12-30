@@ -2,8 +2,8 @@ classdef Monitorable < appStatus.monitorable.Monitorable
     
     methods
         
-        function showError(obj)
-            status = appStatus.Status("Error", "Showing error");
+        function showError(obj, message)
+            status = appStatus.Status("Error", message);
             obj.setStatus(status);
         end
     end

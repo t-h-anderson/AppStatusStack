@@ -202,6 +202,63 @@ classdef tStatusStack < matlab.unittest.TestCase
             testCase.verifyEqual(c, ".c")
         end
 
+        function tUpdateStatues(testCase)
+            % Update value and message of the current status.
+            S = appStatus.stack.StatusStack();
+            status = S.addCondition("Running", Message="m1", Value=1);
+
+            testCase.verifyEqual(S.CurrentStatus.Message, "m1")
+            testCase.verifyEqual(S.CurrentStatus.Value, 1)
+
+            S.updateStatusValue(2, status);
+            S.updateStatusMessage("m2", status);
+
+            testCase.verifyEqual(S.CurrentStatus.Message, "m2")
+            testCase.verifyEqual(S.CurrentStatus.Value, 2)
+        end
+
+        function tUpdateOldStatus(testCase)
+            % Update message and value of a status that no longer exists.
+            S = appStatus.stack.StatusStack();
+            status = S.addCondition("Running", Message="m1", Value=1);
+            status.complete();
+
+            S.addCondition("Warning");
+
+            S.updateStatusValue(2, status);
+            S.updateStatusMessage("m2", status);
+
+            testCase.assertSize(S.Statuses, [1, 2])
+            testCase.assertEqual(S.CurrentStatus.Condition, appStatus.Condition.Warning)
+        end
+
+        function tEmptyStack(testCase)
+            % Call the main methods on an empty stack.
+            S = appStatus.stack.StatusStack.empty(1,0);
+
+            status = S.addCondition("Running");
+            testCase.verifyEmpty(status);
+
+            S.updateStatusMessage("m", appStatus.Status("Running"));
+            S.updateStatusValue(1, appStatus.Status("Running"));
+            S.removeStatus(appStatus.Status("Running"));
+
+            testCase.verifyEmpty(S);
+        end
+
+        function tMonitorable(testCase)
+            % If a monitorable class calls setStatus within its code it
+            % gets picked up by the status stack.
+            S = appStatus.stack.StatusStack();
+            obj = appStatus.demo.Monitorable;
+            S.monitor(obj);
+
+            obj.showError("test");
+
+            testCase.verifyEqual(S.CurrentStatus.Condition, appStatus.Condition.Error)
+            testCase.verifyEqual(S.CurrentStatus.Message, "test")
+        end
+
     end
 
 
