@@ -64,6 +64,10 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
             value = ancestor(obj.Parent, "figure");
         end
 
+        function delete(obj)
+            obj.deleteProgressDlg();
+        end
+
     end
 
     methods (Access = protected)

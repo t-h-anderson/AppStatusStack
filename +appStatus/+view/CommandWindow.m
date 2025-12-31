@@ -38,6 +38,11 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
             tf = true;
         end
 
+        function delete(obj)
+            % Destructor - delete any running timers before destroying.
+            obj.clearRunning();
+        end
+
     end
 
     methods (Access = protected)
@@ -82,7 +87,7 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
             if ~isempty(status.Data) ...
                     && isa(status.Data, "MException")...
                     && status.IsBlocking
-                rethrow(status.Data);
+                throw(status.Data);
                 % Error ends here
             else
                 message = "Error: " + status.Message;
