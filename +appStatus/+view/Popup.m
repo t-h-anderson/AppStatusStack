@@ -252,8 +252,8 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
         end
 
         function tf = isProgressDlgNeeded(obj, status)
-            tf = (status.Condition == appStatus.Condition.Running || ...
-                status.Condition == appStatus.Condition.RunningCancellable);
+            tf = (status.Type == appStatus.StatusType.Running || ...
+                status.Type == appStatus.StatusType.RunningCancellable);
         end
 
         function checkProgressDlg(obj)
@@ -278,9 +278,9 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
     methods (Static)
 
         function num = numberDialogues(stack)
-            conditions = [stack.Statuses.Condition];
-            popupConditions = [appStatus.Condition.Error, appStatus.Condition.Warning, appStatus.Condition.Success];
-            idx = ismember(conditions, popupConditions);
+            statusTypes = [stack.Statuses.Type];
+            popupTypes = [appStatus.StatusType.Error, appStatus.StatusType.Warning, appStatus.StatusType.Success];
+            idx = ismember(statusTypes, popupTypes);
             num = sum(idx);
         end
 

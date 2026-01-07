@@ -9,7 +9,7 @@ classdef Status < matlab.mixin.SetGet
     end
     
     properties (SetAccess = protected)
-        Condition (1,1) appStatus.Condition = appStatus.Condition.Idle
+        Type (1,1) appStatus.StatusType = appStatus.StatusType.Idle
         Message (1,1) string = ""
         MessageShort (1,1) string = string(NaN)
         Value (1,1) double = NaN
@@ -33,7 +33,7 @@ classdef Status < matlab.mixin.SetGet
             %STATUS Construct an instance of this class
             
             arguments
-                condition (1,1) appStatus.Condition = appStatus.Condition.Idle
+                condition (1,1) appStatus.StatusType = appStatus.StatusType.Idle
                 message (1,1) string = ""
                 nvp.Value (1,1) double = NaN
                 nvp.IsVisible (1,1) logical = true
@@ -46,7 +46,7 @@ classdef Status < matlab.mixin.SetGet
             % Random string for ID
             obj.ID = appStatus.util.uuid();
             
-            obj.Condition = condition;
+            obj.Type = condition;
             obj.Message = message;
             set(obj, nvp);
 
@@ -81,7 +81,7 @@ classdef Status < matlab.mixin.SetGet
 
             ID = string([objs.ID])';
             IsVisible = [objs.IsVisible]';
-            Condition = string([objs.Condition])';
+            Type = string([objs.Type])';
             Message = string([objs.Message])';
             Value = [objs.Value]';
             Data = {objs.Data}';
@@ -89,7 +89,7 @@ classdef Status < matlab.mixin.SetGet
             IsBlocking = [objs.IsBlocking]';
             IsComplete = [objs.IsComplete]';
 
-            tbl = table(ID, IsVisible, Condition, Message, Value, Data, IsTemporary, IsBlocking, IsComplete);
+            tbl = table(ID, IsVisible, Type, Message, Value, Data, IsTemporary, IsBlocking, IsComplete);
         end
 
         function delete(objs)

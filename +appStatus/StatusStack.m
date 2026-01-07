@@ -2,7 +2,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
     %STATUSStack
     % Use example:
     % statusStack = appStatus.StatusStack();
-    % [newStatus, cleanObj] = statusStack.addStatus(appStatus.Condition.Running, "Initialising");
+    % [newStatus, cleanObj] = statusStack.addStatus(appStatus.StatusType.Running, "Initialising");
     % updateStatusMessage(obj, status, message)
 
     properties (SetAccess = protected)
@@ -53,20 +53,20 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
 
     methods % Adding
 
-        function [status, cleanupObj] = addCondition(objs, condition, nvp)
-            % Push a new Condition to the stack
-            % [status, cleanupObj] = addCondition(Condition, nvp)
+        function [status, cleanupObj] = addStatus(objs, type, nvp)
+            % Push a new Status of the given type to the stack
+            % [status, cleanupObj] = addStatus(StatusType, nvp)
             % cleanupObj is an optional output that creates a cleanup object
             % Name value pairs:
-            %   Message (Running) - set the Condition message
-            %   IsVisible (true) - set the Condition visibility
+            %   Message (Running) - set the Status message
+            %   IsVisible (true) - set the Status visibility
             %   Value (double) - Used for setting progress bar values
-            %   Data (Condition data) - Store data in the Condition
-            %   Silent (logical) - whether to notify the Condition has
+            %   Data (Status data) - Store data in the Status
+            %   Silent (logical) - whether to notify the Status has
             %   changed
             arguments
                 objs (1,:) appStatus.StatusStack
-                condition (1,1) appStatus.Condition = appStatus.Condition.Running
+                type (1,1) appStatus.StatusType = appStatus.StatusType.Running
                 nvp.Message (1,1) string = "Running"
                 nvp.MessageShort(1,1) string = string(nan)
                 nvp.IsVisible (1,1) logical = true
@@ -82,7 +82,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
                 nvp.CreateCleanupObj = false;
             end
 
-            newStatus = appStatus.Status(condition, nvp.Message, ...
+            newStatus = appStatus.Status(type, nvp.Message, ...
                 "MessageShort", nvp.MessageShort, ...
                 "IsVisible", nvp.IsVisible, ...
                 "Value", nvp.Value, ...
@@ -90,18 +90,18 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
                 "Data", nvp.Data, ...
                 "IsBlocking", nvp.IsBlocking);
 
-            [status, cleanupObj] = objs.addStatus(newStatus, ...
+            [status, cleanupObj] = objs.add(newStatus, ...
                 "Silent", nvp.Silent, ...
                 "CreateCleanupObj", nvp.CreateCleanupObj);
 
         end
 
-        function [newStatus, cleanupObj] = addStatus(objs, newStatus, nvp)
+        function [newStatus, cleanupObj] = add(objs, newStatus, nvp)
             % Push a new status to the stack
-            % [newStatus, cleanupObj] = addStatus(args, newStatus)
+            % [newStatus, cleanupObj] = add(args, newStatus)
             % cleanupObj is an optional output that creates a cleanup object
             % Name value pairs:
-            %   Silent (logical) - whether to notify the Condition has
+            %   Silent (logical) - whether to notify the Status has
             %   changed
             arguments
                 objs (1,:) appStatus.StatusStack
@@ -120,7 +120,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
                 newStatus = repelem(newStatus, numel(objs), 1);
                 cleanupObj = cell(numel(objs), 1);
                 for i = 1:numel(objs)
-                    [newStatus(i), cleanupObj{i}] = objs(i).addStatus(newStatus(i), nvpCell{:});
+                    [newStatus(i), cleanupObj{i}] = objs(i).add(newStatus(i), nvpCell{:});
                 end
                 % newStatus = [newStatus{:}];
                 cleanupObj = [cleanupObj{:}];
@@ -174,7 +174,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
             end
 
             nvpCell = namedargs2cell(nvp);
-            [newStatus, cleanupObj] = objs.addCondition("Error", ...
+            [newStatus, cleanupObj] = objs.addStatus("Error", ...
                 "Data", err, ...
                 "Message", message, ...
                 "MessageShort", messageShort, ...
@@ -368,7 +368,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
             % Run the code in a try catch block to capture any errors
             try
                 fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", "Boundaries","inclusive");
-                [~, c]= obj.addCondition("Running", ...
+                [~, c]= obj.addStatus("Running", ...
                     "Message", "Running: " + fcnCallStr); %#ok<ASGLU>
                 if nargout > 0
                     varargout = cell(1, nargout);
@@ -384,7 +384,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
             [w1, c1] = lastwarn;
             if (~strcmp(w0, w1) || ~strcmp(c0, c1)) ...
                     && ~strcmp(c1, "MATLAB:callback:error") % Remove "errors" inside callback
-                obj.addCondition("Warning", "Message", w1);
+                obj.addStatus("Warning", "Message", w1);
             end
 
         end
@@ -421,7 +421,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
 
         function onMonitorableStatusChanged(obj, s, e)
             status = e.Status;
-            obj.addStatus(status);
+            obj.add(status);
         end
 
     end

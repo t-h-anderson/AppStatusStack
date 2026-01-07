@@ -2,7 +2,7 @@ classdef (Abstract) StatusStackInterface < handle
     %STATUSStack
     % Use example:
     % statusStack = appStatus.StatusStack();
-    % [newStatus, cleanObj] = statusStack.addStatus(appStatus.Condition.Running, "Initialising");
+    % [newStatus, cleanObj] = statusStack.addStatus(appStatus.StatusType.Running, "Initialising");
     % updateStatusMessage(obj, status, message)
 
     properties (Abstract, SetAccess = protected)
@@ -26,9 +26,9 @@ classdef (Abstract) StatusStackInterface < handle
     methods (Abstract)
         
         % Adding
-        [status, cleanupObj] = addCondition(objs, condition, nvp)
+        [status, cleanupObj] = addStatus(objs, type, nvp)
 
-        [newStatus, cleanupObj] = addStatus(obj, nvp)
+        [newStatus, cleanupObj] = add(obj, status, nvp)
 
         [newStatus, cleanupObj] = addError(obj, error)
 

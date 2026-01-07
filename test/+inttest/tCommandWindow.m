@@ -24,12 +24,12 @@ classdef tCommandWindow < matlab.uitest.TestCase
         end
 
         function tDisplaySuccess(testCase)
-            testCase.Stack.addCondition("Success", Message="s1");
+            testCase.Stack.addStatus("Success", Message="s1");
             testCase.verifyEqual(testCase.CommandWindowView.PreviousMessage, "s1");
         end
 
         function tDisplayRunning(testCase)
-            status = testCase.Stack.addCondition("Running", Message="r1");
+            status = testCase.Stack.addStatus("Running", Message="r1");
             pause(0.5)
 
             testCase.verifyEqual(testCase.CommandWindowView.RunningTimer.Running, 'on')
@@ -43,7 +43,7 @@ classdef tCommandWindow < matlab.uitest.TestCase
         end
         
         function tDisplayWarning(testCase)
-            fcn = @() testCase.Stack.addCondition("Warning", Message="w1");
+            fcn = @() testCase.Stack.addStatus("Warning", Message="w1");
             testCase.verifyWarning(fcn, "")
         end
 
@@ -58,16 +58,16 @@ classdef tCommandWindow < matlab.uitest.TestCase
 
         function tDisplayIdle(testCase)
             % Idle status is not displayed by default.
-            testCase.Stack.addCondition("Idle", Message="idle 1");
+            testCase.Stack.addStatus("Idle", Message="idle 1");
             testCase.verifyTrue(ismissing(testCase.CommandWindowView.PreviousMessage))
 
             newview = appStatus.view.CommandWindow(testCase.Stack, ShowIdle=true);
-            testCase.Stack.addCondition("Idle", Message="idle 2");
+            testCase.Stack.addStatus("Idle", Message="idle 2");
             testCase.verifyEqual(newview.PreviousMessage, "idle 2");
         end
 
         function tUpdateMessageAndValue(testCase)
-            status = testCase.Stack.addCondition("Running", Message="r1", Value=1);
+            status = testCase.Stack.addStatus("Running", Message="r1", Value=1);
 
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Message, "r1")
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Value, 1)

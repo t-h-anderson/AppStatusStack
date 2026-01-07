@@ -33,9 +33,9 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
 
             stack = obj.StatusStack;
 
-            %Get the latest Condition
+            %Get the latest status
             latestStatus = stack.CurrentStatus;
-            latestCondition = latestStatus.Condition;
+            latestType = latestStatus.Type;
 
             % Save the status in case this is needed for a view
             obj.PreviousStatus = obj.IncomingStatus;
@@ -44,21 +44,21 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
             obj.beforeDisplay();
 
             % Display a pop-up
-            switch latestCondition
-                case appStatus.Condition.Running
+            switch latestType
+                case appStatus.StatusType.Running
                     obj.displayRunning_(latestStatus, false);
-                case appStatus.Condition.RunningCancellable
+                case appStatus.StatusType.RunningCancellable
                     obj.displayRunning_(latestStatus, true);
-                case appStatus.Condition.Error
+                case appStatus.StatusType.Error
                     obj.displayError_(latestStatus);
-                case appStatus.Condition.Warning
+                case appStatus.StatusType.Warning
                     obj.displayWarning_(latestStatus);
-                case appStatus.Condition.Success
+                case appStatus.StatusType.Success
                     obj.displaySuccess_(latestStatus);
-                case appStatus.Condition.Idle
+                case appStatus.StatusType.Idle
                     obj.displayIdle_(latestStatus);
                 otherwise
-                    error("Unknow Condition");
+                    error("Unknow status type");
             end % switch
 
             

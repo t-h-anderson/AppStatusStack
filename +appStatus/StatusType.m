@@ -1,5 +1,5 @@
-classdef Condition
-    %CONDITION Enumeration of app condition
+classdef StatusType
+    %STATUSTYPE Enumeration of app status type
     
     enumeration
         Running
