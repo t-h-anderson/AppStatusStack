@@ -4,7 +4,7 @@ classdef tStatusStack < matlab.unittest.TestCase
 
         function tDefaultStack(testCase)
             % Check the default properties of a Stack.
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
 
             testCase.assertSize(S.Statuses, [1 1]);
             testCase.assertEmpty(S.StatusListeners);
@@ -14,14 +14,14 @@ classdef tStatusStack < matlab.unittest.TestCase
 
         function tIdleStatusByDefault(testCase)
             % Status on a new stack is Idle by default.
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
 
             testCase.verifyEqual(S.CurrentStatus.Condition, appStatus.Condition.Idle)
         end
 
         function tAddCondition(testCase)
             % Add default condition with no other input.
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             S.addCondition();
             
             testCase.verifySize(S.Statuses, [1 2])
@@ -32,7 +32,7 @@ classdef tStatusStack < matlab.unittest.TestCase
 
         function tAddBlockingCondition(testCase)
             % Add a blocking condition with a message.
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             S.addCondition("Success", Message="Test", IsBlocking=true);
 
             testCase.verifyEqual(S.CurrentStatus.Condition, appStatus.Condition.Success)
@@ -44,7 +44,7 @@ classdef tStatusStack < matlab.unittest.TestCase
         function tAddConditionWithCleanup(testCase)
             % Request the second output (cleanup object) when adding a
             % condition.
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             [~, cleanupObj] = S.addCondition("Warning"); %#ok<ASGLU>
 
             testCase.verifySize(S.Statuses, [1 2])
@@ -57,7 +57,7 @@ classdef tStatusStack < matlab.unittest.TestCase
         end
 
         function tAddMultipleStatuses(testCase)
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             S.addCondition("Error", Message="S1");
             S.addCondition("Success", Message="S2");
             S.addCondition("Success", Message="S3");
@@ -67,7 +67,7 @@ classdef tStatusStack < matlab.unittest.TestCase
         end
 
         function tAddMultipleBlockingStatuses(testCase)
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             S.addCondition("Success", Message="S1", IsBlocking=true);
             S.addCondition("Success", Message="S2");
             S.addCondition("Success", Message="S3", IsBlocking=true);
@@ -78,7 +78,7 @@ classdef tStatusStack < matlab.unittest.TestCase
 
         function tRemoveStatus(testCase)
             % Remove a specific status in the stack.
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             statusToRemove = S.addCondition("Success", Message="S1");
             S.addCondition("Success", Message="S2");
             S.addCondition("Success", Message="S3");
@@ -91,7 +91,7 @@ classdef tStatusStack < matlab.unittest.TestCase
         end
 
         function tRemoveLastStatus(testCase)
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             S.addCondition("Success", Message="S1");
             status = S.addCondition("Success", Message="S2");
 
@@ -104,7 +104,7 @@ classdef tStatusStack < matlab.unittest.TestCase
 
         function tCompleteStatus(testCase)
             % Manually complete a status.
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             status = S.addCondition("Running");
 
             testCase.verifyFalse(status.IsComplete)
@@ -118,7 +118,7 @@ classdef tStatusStack < matlab.unittest.TestCase
         end
 
         function tRemoveAllStatuses(testCase)
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             S.addCondition("Success", Message="S1");
             S.addCondition("Success", Message="S2");
 
@@ -132,7 +132,7 @@ classdef tStatusStack < matlab.unittest.TestCase
 
         function tPrintTable(testCase)
             % Display summary table of statuses.
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             S.addCondition("RunningCancellable", Message="S1");
             S.addCondition("Warning", Message="S2");
 
@@ -143,7 +143,7 @@ classdef tStatusStack < matlab.unittest.TestCase
         end
 
         function tAddError(testCase)
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             S.addError(MException("a:b:c", "test"));
 
             testCase.verifyEqual(S.CurrentStatus.Condition, appStatus.Condition.Error)
@@ -154,7 +154,7 @@ classdef tStatusStack < matlab.unittest.TestCase
         end
 
         function tRunCommand(testCase)
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             result = S.run(@() 1+1);
 
             testCase.verifyEqual(result, 2)
@@ -163,7 +163,7 @@ classdef tStatusStack < matlab.unittest.TestCase
         end
 
         function tRunCommandWithWarning(testCase)
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             S.run(@() warning("test"));
 
             testCase.assertEqual(S.CurrentStatus.Condition, appStatus.Condition.Warning)
@@ -171,7 +171,7 @@ classdef tStatusStack < matlab.unittest.TestCase
         end
 
         function tRunCommandWithError(testCase)
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             S.run(@() error("test"));
 
             testCase.assertEqual(S.CurrentStatus.Condition, appStatus.Condition.Error)
@@ -180,7 +180,7 @@ classdef tStatusStack < matlab.unittest.TestCase
         end
 
         function tRunMultipleCommands(testCase)
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             S.run(@() 1+1);
             S.run(@() error("test 1"));
             S.run(@() error("test 2"));
@@ -193,7 +193,7 @@ classdef tStatusStack < matlab.unittest.TestCase
         end
 
         function tRunCommandWithMultipleOutputs(testCase)
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             [a, b, c] = S.run(@() fileparts("a/b.c"));
              
             testCase.verifyEqual(a, "a")
@@ -203,7 +203,7 @@ classdef tStatusStack < matlab.unittest.TestCase
 
         function tUpdateStatus(testCase)
             % Update value and message of the current status.
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             status = S.addCondition("Running", Message="m1", Value=1);
 
             testCase.verifyEqual(S.CurrentStatus.Message, "m1")
@@ -218,7 +218,7 @@ classdef tStatusStack < matlab.unittest.TestCase
 
         function tUpdateOldStatus(testCase)
             % Update message and value of a status that no longer exists.
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             status = S.addCondition("Running", Message="m1", Value=1);
             status.complete();
 
@@ -233,7 +233,7 @@ classdef tStatusStack < matlab.unittest.TestCase
 
         function tEmptyStack(testCase)
             % Call the main methods on an empty stack.
-            S = appStatus.stack.StatusStack.empty(1,0);
+            S = appStatus.StatusStack.empty(1,0);
 
             status = S.addCondition("Running");
             testCase.verifyEmpty(status);
@@ -248,7 +248,7 @@ classdef tStatusStack < matlab.unittest.TestCase
         function tMonitorable(testCase)
             % If a monitorable class calls setStatus within its code it
             % gets picked up by the status stack.
-            S = appStatus.stack.StatusStack();
+            S = appStatus.StatusStack();
             obj = appStatus.demo.Monitorable;
             S.monitor(obj);
 

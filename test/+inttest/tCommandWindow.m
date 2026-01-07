@@ -1,13 +1,13 @@
 classdef tCommandWindow < matlab.uitest.TestCase
 
     properties
-        Stack appStatus.stack.StatusStack
+        Stack appStatus.StatusStack
         CommandWindowView appStatus.view.CommandWindow
     end
 
     methods (TestMethodSetup)
         function setup(testCase)
-            testCase.Stack = appStatus.stack.StatusStack();
+            testCase.Stack = appStatus.StatusStack();
             testCase.CommandWindowView = appStatus.view.CommandWindow(testCase.Stack);
             testCase.addTeardown(@() delete(testCase.CommandWindowView))
         end

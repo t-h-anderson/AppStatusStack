@@ -6,7 +6,7 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
     end
 
     properties (SetAccess = protected)
-        StatusStack = appStatus.stack.StatusStack.empty(1,0)
+        StatusStack = appStatus.StatusStack.empty(1,0)
         StatusStackListener 
         CancelListener event.listener
         CancelTimer timer % Due to know bug - see below
@@ -33,7 +33,7 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
         function obj = Popup(parent, statusStack, nvp)
             arguments
                 parent = uifigure
-                statusStack (1,1) appStatus.internal.stack.StatusStackInterface = appStatus.stack.StatusStack
+                statusStack (1,1) appStatus.internal.StatusStackInterface = appStatus.StatusStack
                 nvp.ShowWarnings (1,1) logical = true
                 nvp.ShowErrors (1,1) logical = true
                 nvp.ShowRunning (1,1) logical = true

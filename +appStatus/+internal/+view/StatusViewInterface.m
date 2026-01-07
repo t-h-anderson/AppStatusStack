@@ -2,7 +2,7 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
     %StatusVIEWINTERFACE View a status Stack
 
     properties (Abstract, SetAccess = protected)
-        StatusStack appStatus.internal.stack.StatusStackInterface
+        StatusStack appStatus.internal.StatusStackInterface
         StatusStackListener event.listener
     end
 

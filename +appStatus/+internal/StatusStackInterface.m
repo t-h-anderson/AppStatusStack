@@ -1,7 +1,7 @@
 classdef (Abstract) StatusStackInterface < handle
     %STATUSStack
     % Use example:
-    % statusStack = appStatus.stack.StatusStack();
+    % statusStack = appStatus.StatusStack();
     % [newStatus, cleanObj] = statusStack.addStatus(appStatus.Condition.Running, "Initialising");
     % updateStatusMessage(obj, status, message)
 

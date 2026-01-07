@@ -2,7 +2,7 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
     %CommandWindow View a status Stack in the command window
 
     properties (SetAccess = protected)
-        StatusStack = appStatus.stack.StatusStack.empty(1,0)
+        StatusStack = appStatus.StatusStack.empty(1,0)
         StatusStackListener
         RunningTimer timer
     end
@@ -15,7 +15,7 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
         function obj = CommandWindow(statusStack, nvp)
             arguments
-                statusStack = appStatus.stack.StatusStack
+                statusStack = appStatus.StatusStack
                 nvp.ShowWarnings (1,1) logical = true
                 nvp.ShowErrors (1,1) logical = true
                 nvp.ShowRunning (1,1) logical = true
@@ -87,7 +87,7 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
             if ~isempty(status.Data) ...
                     && isa(status.Data, "MException")...
                     && status.IsBlocking
-                throw(status.Data);
+                throwAsCaller(status.Data);
                 % Error ends here
             else
                 message = "Error: " + status.Message;

@@ -1,14 +1,14 @@
 classdef tPopupView < matlab.uitest.TestCase
 
     properties
-        Stack appStatus.stack.StatusStack
+        Stack appStatus.StatusStack
         PopupView appStatus.view.Popup
         Figure matlab.ui.Figure
     end
 
     methods (TestMethodSetup)
         function setup(testCase)
-            testCase.Stack = appStatus.stack.StatusStack();
+            testCase.Stack = appStatus.StatusStack();
             
             testCase.Figure = figure(Position=[1 1 796 479]);
             testCase.addTeardown(@delete, testCase.Figure);
@@ -222,7 +222,7 @@ classdef tPopupView < matlab.uitest.TestCase
             % Create a second stack and a second popup view. Both stacks
             % can push statuses to the same figure.
             testCase.Stack.addCondition("Warning", Message="warning");
-            newStack = appStatus.stack.StatusStack();
+            newStack = appStatus.StatusStack();
             appStatus.view.Popup(testCase.Figure, newStack);
 
             stackArray = [testCase.Stack, newStack];
@@ -240,7 +240,7 @@ classdef tPopupView < matlab.uitest.TestCase
             % Note this assumes that we're updating the same status in the
             % two stacks.
             testCase.Stack.addCondition("Warning", Message="warning");
-            newStack = appStatus.stack.StatusStack();
+            newStack = appStatus.StatusStack();
             newFigure = figure();
             testCase.addTeardown(@delete, newFigure);
             appStatus.view.Popup(newFigure, newStack);
@@ -276,7 +276,7 @@ classdef tPopupView < matlab.uitest.TestCase
         function tDisableShowSuccess(testCase)
             % Creating a popup view with ShowSuccess disabled will prevent
             % success statuses dialogs from appearing.
-            newstack = appStatus.stack.StatusStack();
+            newstack = appStatus.StatusStack();
             popupView = appStatus.view.Popup(testCase.Figure, newstack, ShowSuccess=false);
 
             newstack.addCondition("Success");
