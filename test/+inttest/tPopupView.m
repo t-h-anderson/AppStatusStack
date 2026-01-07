@@ -112,7 +112,7 @@ classdef tPopupView < matlab.uitest.TestCase
             status = testCase.Stack.addStatus("Running", Message="message");
             
             pause(0.2)
-            testCase.Stack.updateStatusMessage("new message", testCase.Stack.CurrentStatus);
+            testCase.Stack.updateStatus(testCase.Stack.CurrentStatus, Message="new message");
             pause(0.5)
 
             testCase.verifyEqual(status.Message, "new message")
@@ -137,7 +137,7 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Value, 0.1)
 
             pause(0.2)
-            testCase.Stack.updateStatusValue(0.5, testCase.Stack.CurrentStatus);
+            testCase.Stack.updateStatus(testCase.Stack.CurrentStatus, Value=0.5);
             pause(0.5)
 
             testCase.verifyEqual(status.Value, 0.5)
@@ -160,7 +160,7 @@ classdef tPopupView < matlab.uitest.TestCase
             status = testCase.Stack.addStatus("Success", Message="message 1");
             testCase.Stack.addStatus("Error", Message="message 2");
 
-            testCase.Stack.updateStatusMessage("new message", status);
+            testCase.Stack.updateStatus(status, Message="new message");
 
             testCase.verifyEqual(testCase.Stack.Statuses(2).Message, "new message")
             testCase.verifyEqual(testCase.Stack.Statuses(end).Message, "message 2")
@@ -249,9 +249,7 @@ classdef tPopupView < matlab.uitest.TestCase
             stackArray.addStatus("Running", Message="message 1", Value=0.1);
 
             pause(0.1)
-            stackArray.updateStatusValue(0.5, testCase.Stack.CurrentStatus);
-            pause(0.1)
-            stackArray.updateStatusMessage("new message", testCase.Stack.CurrentStatus);
+            stackArray.updateStatus(testCase.Stack.CurrentStatus, Value=0.5, Message="new message");
             pause(0.1)
 
             testCase.assertSize(testCase.Stack.Statuses, [1 3])

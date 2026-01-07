@@ -72,8 +72,7 @@ classdef tCommandWindow < matlab.uitest.TestCase
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Message, "r1")
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Value, 1)
 
-            testCase.Stack.updateStatusMessage("r2", status);
-            testCase.Stack.updateStatusValue(2, status);
+            testCase.Stack.updateStatus(status, Message="r2", Value=2);
 
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Message, "r2")
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Value, 2)

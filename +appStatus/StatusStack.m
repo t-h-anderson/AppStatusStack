@@ -117,10 +117,9 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
             % Distribute call to each stack
             if numel(objs) > 1
                 nvpCell = namedargs2cell(nvp);
-                newStatus = repelem(newStatus, numel(objs), 1);
                 cleanupObj = cell(numel(objs), 1);
                 for i = 1:numel(objs)
-                    [newStatus(i), cleanupObj{i}] = objs(i).add(newStatus(i), nvpCell{:});
+                    [newStatus, cleanupObj{i}] = objs(i).add(newStatus, nvpCell{:});
                 end
                 % newStatus = [newStatus{:}];
                 cleanupObj = [cleanupObj{:}];
@@ -186,11 +185,12 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
 
     methods % Updating
 
-        function updateStatusMessage(objs, message, status)
+        function updateStatus(objs, status, nvp)
             arguments
                 objs (1,:) appStatus.StatusStack
-                message (1,1) string
                 status (1,1) appStatus.Status
+                nvp.Message (1,1) string
+                nvp.Value (1,1) double
             end
 
             % Distribute to each stack
@@ -199,7 +199,8 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
             elseif numel(objs) > 1
                 for i = 1:numel(objs)
                     obj = objs(i);
-                    obj.updateStatusMessage(message, status);
+                    nvpCell = namedargs2cell(nvp);
+                    obj.updateStatus(status, nvpCell{:});
                 end
                 return
             else
@@ -214,54 +215,28 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
 
             if currentStatus.ID == status.ID
                 % Quickest to just update the current status
-                obj.CurrentStatus.updateMessage(message);
+                if isfield(nvp, "Message")
+                    obj.CurrentStatus.updateMessage(nvp.Message);
 
-                % Only update if we are at the top of the stack
-                notify(obj, "StatusUpdated");
-            else
-                % Otherwise find it in the stack
-                idx = ([obj.Statuses.ID] == status.ID);
-                obj.Statuses(idx).updateMessage(message);
-            end
-
-        end
-
-        function updateStatusValue(objs, value, status)
-            arguments
-                objs (1,:) appStatus.StatusStack
-                value (1,1) double
-                status (1,1) appStatus.Status
-            end
-
-            % Distribute to each stack
-            if isempty(objs)
-                return
-            elseif numel(objs) > 1
-                for i = 1:numel(objs)
-                    obj = objs(i);
-                    obj.updateStatusValue(value, status);
+                    % Only update if we are at the top of the stack
+                    notify(obj, "StatusUpdated");
                 end
-                return
-            else
-                obj = objs;
-            end
 
-            % If no current status, nothing to update
-            currentStatus = obj.CurrentStatus;
-            if isempty(currentStatus)
-                return
-            end
+                if isfield(nvp, "Value")
+                    obj.CurrentStatus.updateValue(nvp.Value);
 
-            if currentStatus.ID == status.ID
-                % Quickest to just update the current status
-                obj.CurrentStatus.updateValue(value);
-
-                % Only update if we are at the top of the stack
-                notify(obj, "StatusUpdated");
+                    % Only update if we are at the top of the stack
+                    notify(obj, "StatusUpdated");
+                end
             else
                 % Otherwise find it in the stack
                 idx = ([obj.Statuses.ID] == status.ID);
-                obj.Statuses(idx).updateValue(value);
+                if isfield(nvp, "Message")
+                    obj.Statuses(idx).updateMessage(nvp.Message);
+                end
+                if isfield(nvp, "Value")
+                    obj.Statuses(idx).updateValue(nvp.Value);
+                end
             end
 
         end

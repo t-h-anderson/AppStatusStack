@@ -209,8 +209,8 @@ classdef tStatusStack < matlab.unittest.TestCase
             testCase.verifyEqual(S.CurrentStatus.Message, "m1")
             testCase.verifyEqual(S.CurrentStatus.Value, 1)
 
-            S.updateStatusValue(2, status);
-            S.updateStatusMessage("m2", status);
+            S.updateStatus(status, Value=2);
+            S.updateStatus(status, Message="m2");
 
             testCase.verifyEqual(S.CurrentStatus.Message, "m2")
             testCase.verifyEqual(S.CurrentStatus.Value, 2)
@@ -224,11 +224,54 @@ classdef tStatusStack < matlab.unittest.TestCase
 
             S.addStatus("Warning");
 
-            S.updateStatusValue(2, status);
-            S.updateStatusMessage("m2", status);
+            S.updateStatus(status, Value=2);
+            S.updateStatus(status, Message="m2");
 
             testCase.assertSize(S.Statuses, [1, 2])
             testCase.assertEqual(S.CurrentStatus.Type, appStatus.StatusType.Warning)
+        end
+
+        function tUpdateWithNoInputs(testCase)
+            % Calling the update method without specifying a value or
+            % message does nothing.
+            S = appStatus.StatusStack();
+            status = S.addStatus("Running", Message="m1", Value=1);
+            
+            S.updateStatus(status);
+
+            testCase.verifyEqual(S.CurrentStatus.Message, "m1")
+            testCase.verifyEqual(S.CurrentStatus.Value, 1)
+        end
+
+        function tAddStatusToMultipleStacks(testCase)
+            % Add the same status to an array of stacks.
+            S1 = appStatus.StatusStack();
+            S2 = appStatus.StatusStack();
+            StackArray = [S1, S2];
+
+            status = StackArray.addStatus("Warning", Message="m1", Value=1);
+
+            testCase.assertSize(status, [1 1])
+            testCase.verifyEqual(S1.CurrentStatus.ID, status.ID)
+            testCase.verifyEqual(S2.CurrentStatus.ID, status.ID)
+            testCase.verifyEqual(S2.CurrentStatus.Message, "m1")
+            testCase.verifyEqual(S2.CurrentStatus.Type, appStatus.StatusType.Warning)
+            testCase.verifyEqual(S1.CurrentStatus.Value, 1)
+        end
+
+        function tUpdateMultipleStacks(testCase)
+            % Call the update method on an array of stacks.
+            S1 = appStatus.StatusStack();
+            S2 = appStatus.StatusStack();
+            StackArray = [S1, S2];
+
+            status = StackArray.addStatus("Running", Message="m1", Value=1);
+            StackArray.updateStatus(status, Message="m2", Value=2);
+
+            testCase.verifyEqual(S1.CurrentStatus.Message, "m2")
+            testCase.verifyEqual(S1.CurrentStatus.Value, 2)
+            testCase.verifyEqual(S2.CurrentStatus.Message, "m2")
+            testCase.verifyEqual(S2.CurrentStatus.Value, 2)
         end
 
         function tEmptyStack(testCase)
@@ -238,8 +281,7 @@ classdef tStatusStack < matlab.unittest.TestCase
             status = S.addStatus("Running");
             testCase.verifyEmpty(status);
 
-            S.updateStatusMessage("m", appStatus.Status("Running"));
-            S.updateStatusValue(1, appStatus.Status("Running"));
+            S.updateStatus(appStatus.Status("Running"), Message="m", Value=1);
             S.removeStatus(appStatus.Status("Running"));
 
             testCase.verifyEmpty(S);

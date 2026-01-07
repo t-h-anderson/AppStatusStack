@@ -33,7 +33,7 @@ classdef (Abstract) StatusStackInterface < handle
         [newStatus, cleanupObj] = addError(obj, error)
 
         % Updating
-        updateStatusMessage(obj, status, message)
+        updateStatus(obj, status, nvp)
 
         % Removal
         removeStatus(objs, status)
