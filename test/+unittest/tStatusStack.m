@@ -201,7 +201,7 @@ classdef tStatusStack < matlab.unittest.TestCase
             testCase.verifyEqual(c, ".c")
         end
 
-        function tUpdateStatues(testCase)
+        function tUpdateStatus(testCase)
             % Update value and message of the current status.
             S = appStatus.stack.StatusStack();
             status = S.addCondition("Running", Message="m1", Value=1);

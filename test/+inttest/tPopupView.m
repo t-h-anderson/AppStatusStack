@@ -78,6 +78,7 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.dismissDialog("uiconfirm", testCase.Figure)
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Message, "S1")
 
+            testCase.dismissDialog("uiconfirm", testCase.Figure)
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Condition, appStatus.Condition.Idle)
         end
 
@@ -153,7 +154,7 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Condition, appStatus.Condition.Idle)
         end
 
-        function updateOldStatus(testCase)
+        function tUpdateOldStatus(testCase)
             % Update the message of a status that is not at the top of the
             % stack. 
             status = testCase.Stack.addCondition("Success", Message="message 1");

@@ -53,7 +53,7 @@ classdef tCommandWindow < matlab.uitest.TestCase
         end
 
         function tDisplayMultipleErrors(testCase)
-            testCase.assumeFail("To review behaviour - bug")
+            testCase.assumeFail("To review behaviour - bug?")
         end
 
         function tDisplayIdle(testCase)
