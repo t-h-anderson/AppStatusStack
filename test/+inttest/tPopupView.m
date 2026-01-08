@@ -1,18 +1,18 @@
 classdef tPopupView < matlab.uitest.TestCase
 
     properties
-        Stack appStatus.StatusStack
-        PopupView appStatus.view.Popup
+        Stack statusMgr.Stack
+        PopupView statusMgr.view.Popup
         Figure matlab.ui.Figure
     end
 
     methods (TestMethodSetup)
         function setup(testCase)
-            testCase.Stack = appStatus.StatusStack();
+            testCase.Stack = statusMgr.Stack();
             
             testCase.Figure = figure(Position=[1 1 796 479]);
             testCase.addTeardown(@delete, testCase.Figure);
-            testCase.PopupView = appStatus.view.Popup(testCase.Figure, testCase.Stack);
+            testCase.PopupView = statusMgr.view.Popup(testCase.Figure, testCase.Stack);
             testCase.addTeardown(@() delete(testCase.PopupView));
         end
     end
@@ -31,12 +31,12 @@ classdef tPopupView < matlab.uitest.TestCase
             % Dismiss the non-blocking error dialog and check the stack is
             % updated accordingly.
             testCase.Stack.addStatus("Error", Message="Example error");
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Error)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Error)
 
             % Dismiss the dialog that popped up.
             testCase.dismissDialog("uiconfirm", testCase.Figure)
 
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Idle)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
         function tDismissBlockingError(testCase)
@@ -47,17 +47,17 @@ classdef tPopupView < matlab.uitest.TestCase
 
             testCase.dismissDialog("uiconfirm", testCase.Figure, fcn)
 
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Idle)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
         function tCleanupNonBlockingError(testCase)
             % Deleting the status's cleanup object should clear it from the
             % stack and dismiss the dialog.
             [~, cleanupObj] = testCase.Stack.addStatus("Error", Message="Example error"); %#ok<ASGLU>
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Error)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Error)
 
             clear cleanupObj
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Idle)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
             testCase.verifyError(@() testCase.dismissDialog("uiconfirm", testCase.Figure), ...
                 "MATLAB:uiautomation:Driver:NoConfirmationDialogsFound")
         end
@@ -79,7 +79,7 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Message, "S1")
 
             testCase.dismissDialog("uiconfirm", testCase.Figure)
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Idle)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
         function tRemoveAllStatuses(testCase)
@@ -90,7 +90,7 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.Stack.removeAllStatuses();
 
             testCase.assertSize(testCase.Stack.Statuses, [1 1])
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Idle)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
 
             testCase.verifyError(@() testCase.dismissDialog("uiconfirm", testCase.Figure), ...
                 "MATLAB:uiautomation:Driver:NoConfirmationDialogsFound")
@@ -98,11 +98,11 @@ classdef tPopupView < matlab.uitest.TestCase
 
         function tAddNonBlockingError(testCase)
             status = testCase.Stack.addError(MException("a:b:c", "test"), IsBlocking=false);
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Error)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Error)
 
             testCase.dismissDialog("uiconfirm", testCase.Figure)
 
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Idle)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
             testCase.verifyTrue(status.IsComplete)
         end
 
@@ -110,12 +110,12 @@ classdef tPopupView < matlab.uitest.TestCase
             % Show an info message.
             testCase.Stack.addStatus("Info", Message="info1", Identifier="i1");
 
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Info)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Info)
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Message, "info1")
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Identifier, "i1")
 
             testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Idle)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
         function tUpdateStatusMessage(testCase)
@@ -140,7 +140,7 @@ classdef tPopupView < matlab.uitest.TestCase
             status.complete();
 
             testCase.verifyTrue(status.IsComplete)
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Idle)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
         function tDeterminateProgressDialog(testCase)
@@ -163,7 +163,7 @@ classdef tPopupView < matlab.uitest.TestCase
             pause(0.2)
 
             testCase.verifyTrue(status.IsComplete)
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Idle)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
         function tUpdateOldStatus(testCase)
@@ -192,7 +192,7 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
 
             testCase.assertSize(testCase.Stack.Statuses, [1 1])
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Idle)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
         function tCloseAllDialogs(testCase)
@@ -204,7 +204,7 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.chooseDialog("uiconfirm", testCase.Figure, "Close All")
 
             testCase.assertSize(testCase.Stack.Statuses, [1 1])
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Idle)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
         function tRunCommandWithError(testCase)
@@ -224,26 +224,26 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.Stack.addStatus("Warning", Message="message 3", IsTemporary=true);
 
             testCase.assertSize(testCase.Stack.Statuses, [1 2])
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Warning)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Warning)
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Message, "message 3")
             testCase.verifyTrue(testCase.Stack.CurrentStatus.IsTemporary)
-            testCase.verifyEqual(testCase.Stack.Statuses(1).Type, appStatus.StatusType.Idle)
+            testCase.verifyEqual(testCase.Stack.Statuses(1).Type, statusMgr.StatusType.Idle)
         end
 
         function tMultipleStacks(testCase)
             % Create a second stack and a second popup view. Both stacks
             % can push statuses to the same figure.
             testCase.Stack.addStatus("Warning", Message="warning");
-            newStack = appStatus.StatusStack();
-            appStatus.view.Popup(testCase.Figure, newStack);
+            newStack = statusMgr.Stack();
+            statusMgr.view.Popup(testCase.Figure, newStack);
 
             stackArray = [testCase.Stack, newStack];
             stackArray.addStatus("Error", Message="error");
 
             testCase.assertSize(testCase.Stack.Statuses, [1 3])
             testCase.assertSize(newStack.Statuses, [1 2])
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Error)
-            testCase.verifyEqual(newStack.CurrentStatus.Type, appStatus.StatusType.Error)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Error)
+            testCase.verifyEqual(newStack.CurrentStatus.Type, statusMgr.StatusType.Error)
         end
 
         function tUpdateStatusInMultipleStacks(testCase)
@@ -252,10 +252,10 @@ classdef tPopupView < matlab.uitest.TestCase
             % Note this assumes that we're updating the same status in the
             % two stacks.
             testCase.Stack.addStatus("Warning", Message="warning");
-            newStack = appStatus.StatusStack();
+            newStack = statusMgr.Stack();
             newFigure = figure();
             testCase.addTeardown(@delete, newFigure);
-            appStatus.view.Popup(newFigure, newStack);
+            statusMgr.view.Popup(newFigure, newStack);
 
             stackArray = [testCase.Stack, newStack];
             stackArray.addStatus("Running", Message="message 1", Value=0.1);
@@ -266,8 +266,8 @@ classdef tPopupView < matlab.uitest.TestCase
 
             testCase.assertSize(testCase.Stack.Statuses, [1 3])
             testCase.assertSize(newStack.Statuses, [1 2])
-            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Running)
-            testCase.verifyEqual(newStack.CurrentStatus.Type, appStatus.StatusType.Running)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Running)
+            testCase.verifyEqual(newStack.CurrentStatus.Type, statusMgr.StatusType.Running)
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Message, "new message")
             testCase.verifyEqual(newStack.CurrentStatus.Message, "new message")
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Value, 0.5)
@@ -286,13 +286,13 @@ classdef tPopupView < matlab.uitest.TestCase
         function tDisableShowSuccess(testCase)
             % Creating a popup view with ShowSuccess disabled will prevent
             % success statuses dialogs from appearing.
-            newstack = appStatus.StatusStack();
-            popupView = appStatus.view.Popup(testCase.Figure, newstack, ShowSuccess=false);
+            newstack = statusMgr.Stack();
+            popupView = statusMgr.view.Popup(testCase.Figure, newstack, ShowSuccess=false);
 
             newstack.addStatus("Success");
 
             testCase.verifyFalse(popupView.ShowSuccess)
-            testCase.verifyEqual(newstack.CurrentStatus.Type, appStatus.StatusType.Success)
+            testCase.verifyEqual(newstack.CurrentStatus.Type, statusMgr.StatusType.Success)
             testCase.verifyError(@() testCase.dismissDialog("uiconfirm", testCase.Figure), ...
                 "MATLAB:uiautomation:Driver:NoConfirmationDialogsFound")
         end

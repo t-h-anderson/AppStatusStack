@@ -1,14 +1,14 @@
 classdef tCommandWindow < matlab.uitest.TestCase
 
     properties
-        Stack appStatus.StatusStack
-        CommandWindowView appStatus.view.CommandWindow
+        Stack statusMgr.Stack
+        CommandWindowView statusMgr.view.CommandWindow
     end
 
     methods (TestMethodSetup)
         function setup(testCase)
-            testCase.Stack = appStatus.StatusStack();
-            testCase.CommandWindowView = appStatus.view.CommandWindow(testCase.Stack);
+            testCase.Stack = statusMgr.Stack();
+            testCase.CommandWindowView = statusMgr.view.CommandWindow(testCase.Stack);
             testCase.addTeardown(@() delete(testCase.CommandWindowView))
         end
     end
@@ -73,7 +73,7 @@ classdef tCommandWindow < matlab.uitest.TestCase
             testCase.Stack.addStatus("Idle", Message="idle 1");
             testCase.verifyTrue(ismissing(testCase.CommandWindowView.PreviousMessage))
 
-            newview = appStatus.view.CommandWindow(testCase.Stack, ShowIdle=true);
+            newview = statusMgr.view.CommandWindow(testCase.Stack, ShowIdle=true);
             testCase.Stack.addStatus("Idle", Message="idle 2");
             testCase.verifyEqual(newview.PreviousMessage, "idle 2");
         end

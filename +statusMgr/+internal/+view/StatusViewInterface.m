@@ -2,13 +2,13 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
     %StatusVIEWINTERFACE View a status Stack
 
     properties (Abstract, SetAccess = protected)
-        StatusStack appStatus.internal.StatusStackInterface
-        StatusStackListener event.listener
+        Stack statusMgr.internal.StackInterface
+        StackListener event.listener
     end
 
     properties (SetAccess = protected)
-        IncomingStatus (1,1) appStatus.Status = appStatus.Status
-        PreviousStatus (1,1) appStatus.Status = appStatus.Status
+        IncomingStatus (1,1) statusMgr.Status = statusMgr.Status
+        PreviousStatus (1,1) statusMgr.Status = statusMgr.Status
     end
 
     properties
@@ -32,7 +32,7 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
                 return
             end
 
-            stack = obj.StatusStack;
+            stack = obj.Stack;
 
             %Get the latest status
             latestStatus = stack.CurrentStatus;
@@ -46,19 +46,19 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
 
             % Display a pop-up
             switch latestType
-                case appStatus.StatusType.Info
+                case statusMgr.StatusType.Info
                     obj.displayInfo_(latestStatus);
-                case appStatus.StatusType.Running
+                case statusMgr.StatusType.Running
                     obj.displayRunning_(latestStatus, false);
-                case appStatus.StatusType.RunningCancellable
+                case statusMgr.StatusType.RunningCancellable
                     obj.displayRunning_(latestStatus, true);
-                case appStatus.StatusType.Error
+                case statusMgr.StatusType.Error
                     obj.displayError_(latestStatus);
-                case appStatus.StatusType.Warning
+                case statusMgr.StatusType.Warning
                     obj.displayWarning_(latestStatus);
-                case appStatus.StatusType.Success
+                case statusMgr.StatusType.Success
                     obj.displaySuccess_(latestStatus);
-                case appStatus.StatusType.Idle
+                case statusMgr.StatusType.Idle
                     obj.displayIdle_(latestStatus);
                 otherwise
                     error("Unknow status type");
@@ -71,8 +71,8 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
         function setStack(obj, stack)
 
             updateStatusFn = @(src, event)obj.standardDisplay();
-            obj.StatusStack = stack;
-            obj.StatusStackListener = listener(stack, "StatusUpdated", updateStatusFn);
+            obj.Stack = stack;
+            obj.StackListener = listener(stack, "StatusUpdated", updateStatusFn);
             
         end
 

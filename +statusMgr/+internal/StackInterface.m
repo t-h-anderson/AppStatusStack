@@ -1,14 +1,9 @@
-classdef (Abstract) StatusStackInterface < handle
-    %STATUSStack
-    % Use example:
-    % statusStack = appStatus.StatusStack();
-    % [newStatus, cleanObj] = statusStack.addStatus(appStatus.StatusType.Running, "Initialising");
-    % updateStatusMessage(obj, status, message)
+classdef (Abstract) StackInterface < handle
 
     properties (Abstract, SetAccess = protected)
-        Statuses(1,:) appStatus.Status
+        Statuses(1,:) statusMgr.Status
         StatusListeners (1,:) event.listener
-        StatusStackMonitorableListeners (1,:) event.listener
+        StackMonitorableListeners (1,:) event.listener
     end
 
     properties (Abstract, Hidden)
@@ -16,7 +11,7 @@ classdef (Abstract) StatusStackInterface < handle
     end
 
     properties (Abstract, Dependent)
-        CurrentStatus appStatus.Status
+        CurrentStatus statusMgr.Status
     end
 
     events (NotifyAccess = protected)

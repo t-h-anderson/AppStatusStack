@@ -1,14 +1,14 @@
-classdef StatusStack < appStatus.internal.StatusStackInterface
-    %STATUSStack
+classdef Stack < statusMgr.internal.StackInterface
+    %STACK
     % Use example:
-    % statusStack = appStatus.StatusStack();
-    % [newStatus, cleanObj] = statusStack.addStatus(appStatus.StatusType.Running, "Initialising");
+    % statusStack = statusMgr.Stack();
+    % [newStatus, cleanObj] = statusStack.addStatus(statusMgr.StatusType.Running, "Initialising");
     % updateStatusMessage(obj, status, message)
 
     properties (SetAccess = protected)
-        Statuses = appStatus.Status("Idle")
+        Statuses = statusMgr.Status("Idle")
         StatusListeners
-        StatusStackMonitorableListeners
+        StackMonitorableListeners
     end
 
     properties (Hidden)
@@ -19,8 +19,8 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
         CurrentStatus
     end
 
-    methods 
-        function obj = StatusStack()
+    methods
+        function obj = Stack()
             obj.ID = matlab.lang.internal.uuid();
         end
     end
@@ -35,7 +35,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
         % Ensure there is always an idle status
         function val = get.Statuses(obj)
             if isempty(obj.Statuses)
-                val = appStatus.Status("Idle");
+                val = statusMgr.Status("Idle");
                 obj.Statuses = val;
             else
                 val = obj.Statuses;
@@ -44,7 +44,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
 
         % Get the latest status
         function value = get.CurrentStatus(obj)
-            % Note, statuses can never be empty as it will default to idle 
+            % Note, statuses can never be empty as it will default to idle
             % if this ever occurs, see get.Statuses
             value = obj.Statuses(end);
         end
@@ -65,8 +65,8 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
             %   Silent (logical) - whether to notify the Status has
             %   changed
             arguments
-                objs (1,:) appStatus.StatusStack
-                type (1,1) appStatus.StatusType = appStatus.StatusType.Info
+                objs (1,:) statusMgr.Stack
+                type (1,1) statusMgr.StatusType = statusMgr.StatusType.Info
                 nvp.Identifier (1,1) string = ""
                 nvp.Message (1,1) string = ""
                 nvp.MessageShort(1,1) string = string(nan)
@@ -83,7 +83,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
                 nvp.CreateCleanupObj = false;
             end
 
-            newStatus = appStatus.Status(type, nvp.Message, ...
+            newStatus = statusMgr.Status(type, nvp.Message, ...
                 "Identifier", nvp.Identifier, ...
                 "MessageShort", nvp.MessageShort, ...
                 "IsVisible", nvp.IsVisible, ...
@@ -106,8 +106,8 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
             %   Silent (logical) - whether to notify the Status has
             %   changed
             arguments
-                objs (1,:) appStatus.StatusStack
-                newStatus (1,1) appStatus.Status
+                objs (1,:) statusMgr.Stack
+                newStatus (1,1) statusMgr.Status
                 nvp.Silent (1,1) logical = false
                 nvp.CreateCleanupObj (1,1) logical = true
             end
@@ -127,7 +127,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
                 cleanupObj = [cleanupObj{:}];
                 return
             elseif isempty(objs)
-                newStatus = appStatus.Status.empty(1,0);
+                newStatus = statusMgr.Status.empty(1,0);
                 cleanupObj = onCleanup.empty(1,0);
                 return
             end
@@ -151,7 +151,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
 
         function [newStatus, cleanupObj] = addError(objs, err, nvp)
             arguments
-                objs (1,:) 
+                objs (1,:)
                 err (1,1) MException
                 nvp.IsVisible (1,1) logical = true
                 nvp.IsTemporary (1,1) logical = false
@@ -162,7 +162,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
 
             % Remove test infrastructure
             messageShort = err.message;
-             
+
             message = getReport(err, "extended");
             message = string(message);
             message = strsplit(message, newline);
@@ -190,8 +190,8 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
 
         function updateStatus(objs, status, nvp)
             arguments
-                objs (1,:) appStatus.StatusStack
-                status (1,1) appStatus.Status
+                objs (1,:) statusMgr.Stack
+                status (1,1) statusMgr.Status
                 nvp.Message (1,1) string
                 nvp.Value (1,1) double
             end
@@ -253,8 +253,8 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
             % - doesn't have to be top of the stack!
 
             arguments
-                objs (1,:) appStatus.StatusStack
-                toRemove (1,:) appStatus.Status
+                objs (1,:) statusMgr.Stack
+                toRemove (1,:) statusMgr.Status
                 nvp.Silent (1,1) logical = false
             end
 
@@ -293,7 +293,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
         function removeLastStatus(obj, nvp)
             % Remove the last status from the stack
             arguments
-                obj (1,1) appStatus.StatusStack
+                obj (1,1) statusMgr.Stack
                 nvp.Silent (1,1) logical = false
             end
 
@@ -303,7 +303,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
 
         function removeAllStatuses(obj)
             arguments
-                obj (1,:) appStatus.StatusStack
+                obj (1,:) statusMgr.Stack
             end
 
             % Remove all the statuses
@@ -317,15 +317,15 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
 
         function monitor(obj, monitorable)
             arguments
-                obj (1,1) appStatus.StatusStack
-                monitorable (1,1) appStatus.monitorable.Monitorable
+                obj (1,1) statusMgr.Stack
+                monitorable (1,1) statusMgr.monitorable.Monitorable
             end
-            obj.StatusStackMonitorableListeners(end+1) = event.listener(monitorable, "StatusChanged", @(s,e) obj.onMonitorableStatusChanged(s,e));
+            obj.StackMonitorableListeners(end+1) = event.listener(monitorable, "StatusChanged", @(s,e) obj.onMonitorableStatusChanged(s,e));
         end
 
         function varargout = run(obj, fcnHandle, varargin)
             arguments
-                obj (1,1) appStatus.StatusStack
+                obj (1,1) statusMgr.Stack
                 fcnHandle (1,1) function_handle
             end
             arguments (Repeating)
@@ -335,12 +335,12 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
             % Store warning state and clear lastwarn
             s = warning();
 
-            % Turn the warning back to the original state. NOTE: Assumes 
+            % Turn the warning back to the original state. NOTE: Assumes
             % that the function handle didn't change the warn state
             cObj = onCleanup(@() warning(s));
 
             warning("off");
-            warning(appStatus.util.uuid, appStatus.util.uuid);
+            warning(statusMgr.util.uuid, statusMgr.util.uuid);
             [w0, c0] = lastwarn;
 
             % Run the code in a try catch block to capture any errors
@@ -352,7 +352,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
                     varargout = cell(1, nargout);
                     [varargout{:}] = fcnHandle(varargin{:});
                 else
-                   fcnHandle(varargin{:});
+                    fcnHandle(varargin{:});
                 end
             catch me
                 obj.addError(me);
@@ -373,7 +373,7 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
 
         function tbl = table(obj)
             arguments
-                obj (1,1) appStatus.StatusStack
+                obj (1,1) statusMgr.Stack
             end
             tbl = obj.Statuses.table();
         end

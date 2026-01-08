@@ -1,9 +1,9 @@
-classdef CommandWindow < appStatus.internal.view.StatusViewInterface
+classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
     %CommandWindow View a status Stack in the command window
 
     properties (SetAccess = protected)
-        StatusStack = appStatus.StatusStack.empty(1,0)
-        StatusStackListener
+        Stack = statusMgr.Stack.empty(1,0)
+        StackListener
         RunningTimer timer
     end
 
@@ -13,9 +13,9 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
     methods
 
-        function obj = CommandWindow(statusStack, nvp)
+        function obj = CommandWindow(stack, nvp)
             arguments
-                statusStack = appStatus.StatusStack
+                stack = statusMgr.Stack
                 nvp.ShowWarnings (1,1) logical = true
                 nvp.ShowErrors (1,1) logical = true
                 nvp.ShowRunning (1,1) logical = true
@@ -24,11 +24,11 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
             end
 
             % Set view parent and stack properties
-            obj.setStack(statusStack);
+            obj.setStack(stack);
 
             % Add listener to stack
             standardDisplayFn = @(src, event)obj.standardDisplay();
-            obj.StatusStackListener = listener(obj.StatusStack, ...
+            obj.StackListener = listener(obj.Stack, ...
                 "StatusUpdated", standardDisplayFn);
 
             set(obj, nvp);
@@ -52,8 +52,8 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
         function displayRunning(obj, status, ~)
             arguments
-                obj (1,1) appStatus.view.CommandWindow
-                status (1,1) appStatus.Status
+                obj (1,1) statusMgr.view.CommandWindow
+                status (1,1) statusMgr.Status
                 ~ % No cancellable option for the terminal
             end
 
@@ -80,8 +80,8 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
         function displayError(obj, status)
             arguments
-                obj (1,1) appStatus.view.CommandWindow
-                status (1,1) appStatus.Status
+                obj (1,1) statusMgr.view.CommandWindow
+                status (1,1) statusMgr.Status
             end
 
             if ~isempty(status.Data) ...
@@ -100,16 +100,16 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
         function displayWarning(obj, status)
             arguments
-                obj (1,1) appStatus.view.CommandWindow
-                status (1,1) appStatus.Status
+                obj (1,1) statusMgr.view.CommandWindow
+                status (1,1) statusMgr.Status
             end
             warning(status.Identifier, "Warning: " + status.Message);
         end
 
         function displaySuccess(obj, status)
             arguments
-                obj (1,1) appStatus.view.CommandWindow
-                status (1,1) appStatus.Status
+                obj (1,1) statusMgr.view.CommandWindow
+                status (1,1) statusMgr.Status
             end
             message = status.Message;
             obj.writeToTerminal(message);
@@ -117,8 +117,8 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
         function displayInfo(obj, status)
             arguments
-                obj (1,1) appStatus.view.CommandWindow
-                status (1,1) appStatus.Status
+                obj (1,1) statusMgr.view.CommandWindow
+                status (1,1) statusMgr.Status
             end
             message = status.Message;
             obj.writeToTerminal(message);
@@ -127,7 +127,7 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
         function displayIdle(obj,status)
             arguments
                 obj (1,1)
-                status (1,1) appStatus.Status
+                status (1,1) statusMgr.Status
             end
             message = status.Message;
             obj.writeToTerminal(message);

@@ -6,7 +6,7 @@ classdef tStatus < matlab.unittest.TestCase
             % Check the default Status properties.
             import matlab.unittest.constraints.Matches
             
-            S = appStatus.Status();
+            S = statusMgr.Status();
 
             testCase.verifyThat(S.ID, Matches("^.+$"));
             testCase.verifyEqual(S.Identifier, "");

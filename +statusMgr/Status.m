@@ -3,7 +3,7 @@ classdef Status < matlab.mixin.SetGet
    
     properties (SetAccess = protected)
         Identifier (1,1) string = "" % Semantic identified, for filtering/suppression
-        Type (1,1) appStatus.StatusType = appStatus.StatusType.Idle
+        Type (1,1) statusMgr.StatusType = statusMgr.StatusType.Idle
         Message (1,1) string = ""
         MessageShort (1,1) string = string(NaN)
         Value (1,1) double = NaN
@@ -32,7 +32,7 @@ classdef Status < matlab.mixin.SetGet
             %STATUS Construct an instance of this class
 
             arguments
-                condition (1,1) appStatus.StatusType = appStatus.StatusType.Idle
+                condition (1,1) statusMgr.StatusType = statusMgr.StatusType.Idle
                 message (1,1) string = ""
                 nvp.Identifier (1,1) string = ""
                 nvp.Value (1,1) double = NaN
@@ -44,7 +44,7 @@ classdef Status < matlab.mixin.SetGet
             end
 
             % Random string for ID
-            obj.ID = appStatus.util.uuid();
+            obj.ID = statusMgr.util.uuid();
 
             % Set timestamp at creation time.
             obj.Timestamp = datetime("now");
@@ -56,7 +56,7 @@ classdef Status < matlab.mixin.SetGet
 
         function updateMessage(objs, message)
             arguments
-                objs (1,:) appStatus.Status
+                objs (1,:) statusMgr.Status
                 message (1,1) string
             end
             [objs.Message] = deal(message);
@@ -64,7 +64,7 @@ classdef Status < matlab.mixin.SetGet
 
         function updateValue(objs, value)
             arguments
-                objs (1,:) appStatus.Status
+                objs (1,:) statusMgr.Status
                 value (1,1) double
             end
             [objs.Value] = deal(value);
