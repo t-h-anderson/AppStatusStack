@@ -43,8 +43,8 @@ classdef tCommandWindow < matlab.uitest.TestCase
         end
         
         function tDisplayWarning(testCase)
-            fcn = @() testCase.Stack.addStatus("Warning", Message="w1");
-            testCase.verifyWarning(fcn, "")
+            fcn = @() testCase.Stack.addStatus("Warning", Message="w1", Identifier="a:b");
+            testCase.verifyWarning(fcn, "a:b")
         end
 
         function tDisplayError(testCase)

@@ -103,7 +103,7 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
                 obj (1,1)
                 status (1,1) appStatus.Status
             end
-            warning("Warning: " + status.Message);
+            warning(status.Identifier, "Warning: " + status.Message);
         end
 
         function displaySuccess(obj, status)

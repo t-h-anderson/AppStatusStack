@@ -9,6 +9,7 @@ classdef tStatus < matlab.unittest.TestCase
             S = appStatus.Status();
 
             testCase.verifyThat(S.ID, Matches("^.+$"));
+            testCase.verifyEqual(S.Identifier, "");
             testCase.verifyTrue(S.IsVisible);
             testCase.verifyEqual(S.Message, "");
             testCase.verifyEqual(S.MessageShort, "");

@@ -30,6 +30,25 @@ classdef tStatusStack < matlab.unittest.TestCase
             testCase.verifyEqual(S.CurrentStatus.MessageShort, "")
         end
 
+        function tAddStatusWithProperties(testCase)
+            % Add a status with non-default inputs.
+            S = appStatus.StatusStack();
+            S.addStatus("Warning", Message="t1", Value=10, IsTemporary=true, ...
+                Identifier="id1", Data={1,2}, MessageShort="m1", ...
+                IsBlocking=true, IsVisible=false);
+
+            testCase.verifySize(S.Statuses, [1 2])
+            testCase.verifyEqual(S.CurrentStatus.Type, appStatus.StatusType.Warning)
+            testCase.verifyEqual(S.CurrentStatus.Message, "t1")
+            testCase.verifyEqual(S.CurrentStatus.MessageShort, "m1")
+            testCase.verifyTrue(S.CurrentStatus.IsTemporary)
+            testCase.verifyTrue(S.CurrentStatus.IsBlocking)
+            testCase.verifyFalse(S.CurrentStatus.IsVisible)
+            testCase.verifyEqual(S.CurrentStatus.Value, 10)
+            testCase.verifyEqual(S.CurrentStatus.Identifier, "id1")
+            testCase.verifyEqual(S.CurrentStatus.Data, {1,2})
+        end
+
         function tAddBlockingStatus(testCase)
             % Add a blocking status with a message.
             S = appStatus.StatusStack();
@@ -151,6 +170,7 @@ classdef tStatusStack < matlab.unittest.TestCase
             testCase.assertClass(S.CurrentStatus.Data, "MException")
             testCase.verifyEqual(S.CurrentStatus.Data.identifier, 'a:b:c')
             testCase.verifyTrue(S.CurrentStatus.IsBlocking)
+            testCase.verifyEqual(S.CurrentStatus.Identifier, "a:b:c")
         end
 
         function tRunCommand(testCase)

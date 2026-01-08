@@ -1,40 +1,40 @@
 classdef Status < matlab.mixin.SetGet
     %STATUS settings for models
+   
     properties (SetAccess = protected)
-        ID (1,1) string = ""
-    end
-
-    properties (SetObservable)
-        IsVisible (1,1) logical = true
-    end
-    
-    properties (SetAccess = protected)
+        Identifier (1,1) string = "" % Semantic identified, for filtering/suppression
         Type (1,1) appStatus.StatusType = appStatus.StatusType.Idle
         Message (1,1) string = ""
         MessageShort (1,1) string = string(NaN)
         Value (1,1) double = NaN
         Data = [] % Pocket to store data
+        Timestamp (1,1) datetime
 
         IsTemporary (1,1) logical = false % Remove when next status added
         IsBlocking (1,1) logical = false % Block graphical display until status clears
+        IsComplete (1,1) logical = false % Has the status been completed
     end
 
-    % Determine if status is complete
-    properties (SetAccess = protected)
-        IsComplete (1,1) logical = false % Has the status been completed
+    properties (SetObservable)
+        IsVisible (1,1) logical = true
+    end
+
+    properties (SetAccess = protected, Hidden)
+        ID (1,1) string = "" % unique ID
     end
 
     events (NotifyAccess = protected)
         Completed % When the status is removed/cleared
     end
-    
+
     methods
         function obj = Status(condition, message, nvp)
             %STATUS Construct an instance of this class
-            
+
             arguments
                 condition (1,1) appStatus.StatusType = appStatus.StatusType.Idle
                 message (1,1) string = ""
+                nvp.Identifier (1,1) string = ""
                 nvp.Value (1,1) double = NaN
                 nvp.IsVisible (1,1) logical = true
                 nvp.IsTemporary (1,1) logical = false
@@ -45,11 +45,13 @@ classdef Status < matlab.mixin.SetGet
 
             % Random string for ID
             obj.ID = appStatus.util.uuid();
-            
+
+            % Set timestamp at creation time.
+            obj.Timestamp = datetime("now");
+
             obj.Type = condition;
             obj.Message = message;
             set(obj, nvp);
-
         end
 
         function updateMessage(objs, message)
@@ -108,6 +110,6 @@ classdef Status < matlab.mixin.SetGet
         end
 
     end % methods
-   
+
 end % classdef
 
