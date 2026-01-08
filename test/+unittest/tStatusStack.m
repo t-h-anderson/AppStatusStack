@@ -25,7 +25,7 @@ classdef tStatusStack < matlab.unittest.TestCase
             S.addStatus();
             
             testCase.verifySize(S.Statuses, [1 2])
-            testCase.verifyEqual(S.CurrentStatus.Type, appStatus.StatusType.Running)
+            testCase.verifyEqual(S.CurrentStatus.Type, appStatus.StatusType.Info)
             testCase.verifyEqual(S.CurrentStatus.Message, "")
             testCase.verifyEqual(S.CurrentStatus.MessageShort, "")
         end
@@ -33,12 +33,12 @@ classdef tStatusStack < matlab.unittest.TestCase
         function tAddStatusWithProperties(testCase)
             % Add a status with non-default inputs.
             S = appStatus.StatusStack();
-            S.addStatus("Warning", Message="t1", Value=10, IsTemporary=true, ...
+            S.addStatus("Info", Message="t1", Value=10, IsTemporary=true, ...
                 Identifier="id1", Data={1,2}, MessageShort="m1", ...
                 IsBlocking=true, IsVisible=false);
 
             testCase.verifySize(S.Statuses, [1 2])
-            testCase.verifyEqual(S.CurrentStatus.Type, appStatus.StatusType.Warning)
+            testCase.verifyEqual(S.CurrentStatus.Type, appStatus.StatusType.Info)
             testCase.verifyEqual(S.CurrentStatus.Message, "t1")
             testCase.verifyEqual(S.CurrentStatus.MessageShort, "m1")
             testCase.verifyTrue(S.CurrentStatus.IsTemporary)

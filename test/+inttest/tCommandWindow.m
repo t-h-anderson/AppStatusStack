@@ -28,6 +28,18 @@ classdef tCommandWindow < matlab.uitest.TestCase
             testCase.verifyEqual(testCase.CommandWindowView.PreviousMessage, "s1");
         end
 
+        function tDisplayInfo(testCase)
+            testCase.Stack.addStatus("Info", Message="i1");
+            testCase.verifyTrue(testCase.CommandWindowView.ShowInfo)
+            testCase.verifyEqual(testCase.CommandWindowView.PreviousMessage, "i1");
+
+            testCase.CommandWindowView.ShowInfo = false;
+            testCase.Stack.addStatus("Info", Message="i2");
+            testCase.verifyFalse(testCase.CommandWindowView.ShowInfo)
+            testCase.verifyEqual(testCase.CommandWindowView.IncomingStatus.Message, "i2");
+            testCase.verifyTrue(ismissing(testCase.CommandWindowView.PreviousMessage))
+        end
+
         function tDisplayRunning(testCase)
             status = testCase.Stack.addStatus("Running", Message="r1");
             pause(0.5)

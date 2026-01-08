@@ -52,7 +52,7 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
         function displayRunning(obj, status, ~)
             arguments
-                obj (1,1)
+                obj (1,1) appStatus.view.CommandWindow
                 status (1,1) appStatus.Status
                 ~ % No cancellable option for the terminal
             end
@@ -80,7 +80,7 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
         function displayError(obj, status)
             arguments
-                obj (1,1)
+                obj (1,1) appStatus.view.CommandWindow
                 status (1,1) appStatus.Status
             end
 
@@ -100,7 +100,7 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
         function displayWarning(obj, status)
             arguments
-                obj (1,1)
+                obj (1,1) appStatus.view.CommandWindow
                 status (1,1) appStatus.Status
             end
             warning(status.Identifier, "Warning: " + status.Message);
@@ -108,7 +108,16 @@ classdef CommandWindow < appStatus.internal.view.StatusViewInterface
 
         function displaySuccess(obj, status)
             arguments
-                obj (1,1)
+                obj (1,1) appStatus.view.CommandWindow
+                status (1,1) appStatus.Status
+            end
+            message = status.Message;
+            obj.writeToTerminal(message);
+        end
+
+        function displayInfo(obj, status)
+            arguments
+                obj (1,1) appStatus.view.CommandWindow
                 status (1,1) appStatus.Status
             end
             message = status.Message;

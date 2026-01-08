@@ -12,6 +12,7 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
     end
 
     properties
+        ShowInfo (1,1) logical = true
         ShowWarnings (1,1) logical = true
         ShowErrors (1,1) logical = true
         ShowRunning (1,1) logical = true
@@ -45,6 +46,8 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
 
             % Display a pop-up
             switch latestType
+                case appStatus.StatusType.Info
+                    obj.displayInfo_(latestStatus);
                 case appStatus.StatusType.Running
                     obj.displayRunning_(latestStatus, false);
                 case appStatus.StatusType.RunningCancellable
@@ -76,6 +79,12 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
     end
 
     methods (Access = protected)
+        function displayInfo_(obj, status)
+            if obj.ShowInfo
+                obj.displayInfo(status);
+            end
+        end
+
         function displayRunning_(obj, status, cancellable)
             if obj.ShowRunning
                 obj.displayRunning(status, cancellable);
@@ -119,6 +128,8 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
     end
 
     methods (Abstract, Access = protected)
+
+        displayInfo(obj, status)
 
         displayRunning(obj, status, cancellable)
 

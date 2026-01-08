@@ -2,6 +2,7 @@ classdef StatusType
     %STATUSTYPE Enumeration of app status type
     
     enumeration
+        Info
         Running
         RunningCancellable
         Error

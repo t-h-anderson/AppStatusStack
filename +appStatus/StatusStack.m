@@ -66,9 +66,9 @@ classdef StatusStack < appStatus.internal.StatusStackInterface
             %   changed
             arguments
                 objs (1,:) appStatus.StatusStack
-                type (1,1) appStatus.StatusType = appStatus.StatusType.Running
+                type (1,1) appStatus.StatusType = appStatus.StatusType.Info
                 nvp.Identifier (1,1) string = ""
-                nvp.Message (1,1) string = "Running"
+                nvp.Message (1,1) string = ""
                 nvp.MessageShort(1,1) string = string(nan)
                 nvp.IsVisible (1,1) logical = true
                 nvp.IsTemporary (1,:) logical {mustBeScalarOrEmpty} = false

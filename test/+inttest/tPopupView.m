@@ -106,6 +106,18 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyTrue(status.IsComplete)
         end
 
+        function tShowInfo(testCase)
+            % Show an info message.
+            testCase.Stack.addStatus("Info", Message="info1", Identifier="i1");
+
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Info)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Message, "info1")
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Identifier, "i1")
+
+            testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, appStatus.StatusType.Idle)
+        end
+
         function tUpdateStatusMessage(testCase)
             % Create an indeterminate progress dialog and update its
             % message.

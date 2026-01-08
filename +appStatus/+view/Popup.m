@@ -34,6 +34,7 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
             arguments
                 parent = uifigure
                 statusStack (1,1) appStatus.internal.StatusStackInterface = appStatus.StatusStack
+                nvp.ShowInfo (1,1) logical = true
                 nvp.ShowWarnings (1,1) logical = true
                 nvp.ShowErrors (1,1) logical = true
                 nvp.ShowRunning (1,1) logical = true
@@ -43,6 +44,7 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
 
             % Set view parent and stack properties
             obj.Parent = parent;
+            obj.ShowInfo = nvp.ShowInfo;
             obj.ShowWarnings = nvp.ShowWarnings;
             obj.ShowErrors = nvp.ShowErrors;
             obj.ShowRunning = nvp.ShowRunning;
@@ -103,6 +105,10 @@ classdef Popup < appStatus.internal.view.StatusViewInterface
 
         function displaySuccess(obj, status)
             obj.popupAlert(status, "Success", "success");
+        end
+
+        function displayInfo(obj, status)
+            obj.popupAlert(status, "Info", "info");
         end
 
         function displayIdle(obj, varargin)
