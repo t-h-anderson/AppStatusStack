@@ -20,6 +20,7 @@ classdef tPopupView < matlab.uitest.TestCase
     methods (Test)
 
         function tDefaultValues(testCase)
+            testCase.verifyTrue(testCase.PopupView.ShowInfo)
             testCase.verifyTrue(testCase.PopupView.ShowWarnings)
             testCase.verifyTrue(testCase.PopupView.ShowErrors)
             testCase.verifyTrue(testCase.PopupView.ShowSuccess)
@@ -304,6 +305,19 @@ classdef tPopupView < matlab.uitest.TestCase
 
             testCase.verifyFalse(testCase.PopupView.isVisible());
             testCase.verifyFalse(testCase.PopupView.HasPopup);
+        end
+
+        function tAddStatusBeforeCreatingView(testCase)
+            % If you create the view after a status has been added, that
+            % status is still visible. 
+            testCase.Stack.addStatus("Warning", Message="warning");
+            newFigure = figure();
+            testCase.addTeardown(@delete, newFigure);
+            newPopupView = statusMgr.view.Popup(newFigure, testCase.Stack);
+            testCase.addTeardown(@() delete(newPopupView));
+
+            testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
+            testCase.verifyEqual(newPopupView.PreviousStatus.Message, "warning")
         end
 
 

@@ -16,6 +16,7 @@ classdef tCommandWindow < matlab.uitest.TestCase
     methods (Test)
 
         function tDefaultValues(testCase)
+            testCase.verifyTrue(testCase.CommandWindowView.ShowInfo)
             testCase.verifyTrue(testCase.CommandWindowView.ShowWarnings)
             testCase.verifyTrue(testCase.CommandWindowView.ShowErrors)
             testCase.verifyTrue(testCase.CommandWindowView.ShowSuccess)
@@ -60,8 +61,16 @@ classdef tCommandWindow < matlab.uitest.TestCase
         end
 
         function tDisplayError(testCase)
-            testCase.assumeFail("To review behaviour")
-            testCase.Stack.addError(MException("a:b:c", "test"));
+            % testCase.assumeFail("To review behaviour")
+            function createViewAndThrowError(testCase)
+                stack = statusMgr.Stack();
+                commandWindowView = statusMgr.view.CommandWindow(stack);
+                testCase.addTeardown(@() delete(commandWindowView))
+                stack.addError(MException("a:b:c", "test"));
+                pause(0.2)
+            end
+            fcn = @() createViewAndThrowError(testCase);
+            testCase.verifyError(fcn, "a:b:c")
         end
 
         function tDisplayMultipleErrors(testCase)

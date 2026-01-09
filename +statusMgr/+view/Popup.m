@@ -44,12 +44,7 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
 
             % Set view parent and stack properties
             obj.Parent = parent;
-            obj.ShowInfo = nvp.ShowInfo;
-            obj.ShowWarnings = nvp.ShowWarnings;
-            obj.ShowErrors = nvp.ShowErrors;
-            obj.ShowRunning = nvp.ShowRunning;
-            obj.ShowSuccess = nvp.ShowSuccess;
-            obj.ShowIdle = nvp.ShowIdle;
+            set(obj, nvp);
 
             % Add listener to stack
             obj.setStack(stack);

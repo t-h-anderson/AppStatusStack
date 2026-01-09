@@ -218,21 +218,23 @@ classdef Stack < statusMgr.internal.StackInterface
 
             if currentStatus.ID == status.ID
                 % Quickest to just update the current status
-                if isfield(nvp, "Message")
+                if isfield(nvp, "Message") && isfield(nvp, "Value")
                     obj.CurrentStatus.updateMessage(nvp.Message);
-
-                    % Only update if we are at the top of the stack
-                    notify(obj, "StatusUpdated");
-                end
-
-                if isfield(nvp, "Value")
                     obj.CurrentStatus.updateValue(nvp.Value);
 
                     % Only update if we are at the top of the stack
                     notify(obj, "StatusUpdated");
+                elseif isfield(nvp, "Message")
+                    obj.CurrentStatus.updateMessage(nvp.Message);
+                    notify(obj, "StatusUpdated");
+                elseif isfield(nvp, "Value")
+                    obj.CurrentStatus.updateValue(nvp.Value);
+                    notify(obj, "StatusUpdated");
                 end
             else
-                % Otherwise find it in the stack
+                % Otherwise find it in the stack. Note we don't issue the
+                % StatusUpdated event in this case because the view
+                % listeners update the views based on the latest status.
                 idx = ([obj.Statuses.ID] == status.ID);
                 if isfield(nvp, "Message")
                     obj.Statuses(idx).updateMessage(nvp.Message);

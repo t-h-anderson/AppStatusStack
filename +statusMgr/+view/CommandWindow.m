@@ -16,6 +16,7 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
         function obj = CommandWindow(stack, nvp)
             arguments
                 stack = statusMgr.Stack
+                nvp.ShowInfo (1,1) logical = true
                 nvp.ShowWarnings (1,1) logical = true
                 nvp.ShowErrors (1,1) logical = true
                 nvp.ShowRunning (1,1) logical = true
@@ -25,12 +26,6 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
 
             % Set view parent and stack properties
             obj.setStack(stack);
-
-            % Add listener to stack
-            standardDisplayFn = @(src, event)obj.standardDisplay();
-            obj.StackListener = listener(obj.Stack, ...
-                "StatusUpdated", standardDisplayFn);
-
             set(obj, nvp);
         end
 
@@ -87,7 +82,7 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
             if ~isempty(status.Data) ...
                     && isa(status.Data, "MException")...
                     && status.IsBlocking
-                throwAsCaller(status.Data);
+                throw(status.Data);
                 % Error ends here
             else
                 message = "Error: " + status.Message;
