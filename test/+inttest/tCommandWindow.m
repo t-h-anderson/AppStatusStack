@@ -61,20 +61,18 @@ classdef tCommandWindow < matlab.uitest.TestCase
         end
 
         function tDisplayError(testCase)
-            testCase.assumeFail("To review behaviour")
-            function createViewAndThrowError(testCase)
-                stack = statusMgr.Stack();
-                commandWindowView = statusMgr.view.CommandWindow(stack);
-                testCase.addTeardown(@() delete(commandWindowView))
-                stack.addError(MException("a:b:c", "test"));
-                pause(0.2)
-            end
-            fcn = @() createViewAndThrowError(testCase);
-            testCase.verifyError(fcn, "a:b:c")
-        end
 
-        function tDisplayMultipleErrors(testCase)
-            testCase.assumeFail("To review behaviour - bug?")
+            me = MException("a:b:c", "test error a:b:c");
+
+            diaryFile = testCase.diaryFixture();
+
+            testCase.Stack.addError(me);
+
+            lines = strjoin(readlines(diaryFile), newline);
+            testCase.verifyTrue(contains(lines, "test error a:b:c"));
+
+            testCase.verifyEqual(testCase.CommandWindowView.PreviousMessage, string(me.getReport()));
+
         end
 
         function tDisplayIdle(testCase)
@@ -100,5 +98,23 @@ classdef tCommandWindow < matlab.uitest.TestCase
         end
 
     end
+
+    methods (Access = protected)
+
+        function diaryFile = diaryFixture(testCase)
+            % Use diary to capture the output to the command window
+            testCase.addTeardown(@() diary(get(0,'Diary')));
+
+            wff = matlab.unittest.fixtures.WorkingFolderFixture;
+            testCase.applyFixture(wff);
+            diaryFile = fullfile(wff.Folder, "diary.txt");
+            testCase.addTeardown(@() delete(diaryFile));
+
+            testCase.addTeardown(@() diary("off")); % Ensure the diary is closed before trying to delete the file
+            diary(diaryFile);
+        end
+
+    end
+
 end
 

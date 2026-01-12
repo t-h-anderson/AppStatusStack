@@ -11,8 +11,8 @@ classdef Status < matlab.mixin.SetGet
         Timestamp (1,1) datetime
 
         IsTemporary (1,1) logical = false % Remove when next status added
-        IsBlocking (1,1) logical = false % Block graphical display until status clears
         IsComplete (1,1) logical = false % Has the status been completed
+        CompletionFcn (1,:) function_handle {mustBeScalarOrEmpty}
     end
 
     properties (SetObservable)
@@ -38,9 +38,9 @@ classdef Status < matlab.mixin.SetGet
                 nvp.Value (1,1) double = NaN
                 nvp.IsVisible (1,1) logical = true
                 nvp.IsTemporary (1,1) logical = false
-                nvp.IsBlocking (1,1) logical = false
                 nvp.Data
                 nvp.MessageShort (1,1) string = string(NaN)
+                nvp.CompletionFcn (1,:) function_handle {mustBeScalarOrEmpty} = function_handle.empty(1,0)
             end
 
             % Random string for ID
@@ -71,11 +71,21 @@ classdef Status < matlab.mixin.SetGet
         end
 
         function complete(objs)
-            idx = [objs.IsComplete];
+            idx = ~[objs.IsComplete];
+            toComplete = (objs(idx));
 
-            if ~any(idx)
-                [objs.IsComplete] = deal(true);
-                notify(objs, "Completed");
+            if ~isempty(toComplete)
+                [toComplete.IsComplete] = deal(true);
+
+                % Call any completion functions
+                for i = 1:numel(toComplete)
+                    this = toComplete(i);
+                    if ~isempty(this.CompletionFcn)
+                        this.CompletionFcn(this);
+                    end
+                end
+
+                notify(toComplete, "Completed");
             end
         end
 
@@ -88,10 +98,9 @@ classdef Status < matlab.mixin.SetGet
             Value = [objs.Value]';
             Data = {objs.Data}';
             IsTemporary = [objs.IsTemporary]';
-            IsBlocking = [objs.IsBlocking]';
             IsComplete = [objs.IsComplete]';
 
-            tbl = table(ID, IsVisible, Type, Message, Value, Data, IsTemporary, IsBlocking, IsComplete);
+            tbl = table(ID, IsVisible, Type, Message, Value, Data, IsTemporary, IsComplete);
         end
 
         function delete(objs)

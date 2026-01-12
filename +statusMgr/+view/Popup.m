@@ -26,6 +26,7 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
 
     properties (Access = private)
         TestCase = statusMgr.internal.view.TestCase()
+        SkipComplete (1,1) logical = false
     end
 
     methods
@@ -156,23 +157,25 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
 
                 end
 
-                while status.IsBlocking && obj.Stack.CurrentStatus == status
-                    % Wait till user clicks OK
-                    drawnow
-                end
             end
-
 
         end % popupAlert
 
         function clearPreviousAlert(obj, f)
             % Should only ever have one uialert
             if obj.HasPopup
+
+                obj.SkipComplete = true;
+                c = onCleanup(@() setSkipCompleteToFalse(obj));
                 % See g1622345.
                 tt = obj.TestCase;
                 obj.HasPopup = false; % Avoid triggering the complete if clicked
                 tt.dismissDialog("uiconfirm", f)
                 drawnow
+            end
+
+            function setSkipCompleteToFalse(obj)
+                 obj.SkipComplete = false;
             end
         end
 
@@ -181,7 +184,10 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
     methods (Access = protected)
         function completeIfClicked(obj, src, event, status)
             if obj.HasPopup
+                % Popup closed by click
                 obj.HasPopup = false;
+            end
+            if ~obj.SkipComplete
                 switch event.SelectedOption
                     case "OK"
                         status.complete();
