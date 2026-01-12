@@ -82,7 +82,7 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
             if ~isempty(status.Data) ...
                     && isa(status.Data, "MException")...
                     && status.IsBlocking
-                throw(status.Data);
+                throwAsCaller(status.Data);
                 % Error ends here
             else
                 message = "Error: " + status.Message;

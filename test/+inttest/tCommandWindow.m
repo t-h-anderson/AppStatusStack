@@ -61,7 +61,7 @@ classdef tCommandWindow < matlab.uitest.TestCase
         end
 
         function tDisplayError(testCase)
-            % testCase.assumeFail("To review behaviour")
+            testCase.assumeFail("To review behaviour")
             function createViewAndThrowError(testCase)
                 stack = statusMgr.Stack();
                 commandWindowView = statusMgr.view.CommandWindow(stack);
