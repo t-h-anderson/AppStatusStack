@@ -4,6 +4,7 @@ classdef tPopupView < matlab.uitest.TestCase
         Stack statusMgr.Stack
         PopupView statusMgr.view.Popup
         Figure matlab.ui.Figure
+        TestField
     end
 
     methods (TestMethodSetup)
@@ -28,30 +29,34 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyFalse(testCase.PopupView.ShowIdle)
         end
 
-        function tDismissNonBlockingError(testCase)
-            % Dismiss the non-blocking error dialog and check the stack is
+        function tDismissError(testCase)
+            % Dismiss the error dialog and check the stack is
             % updated accordingly.
             testCase.Stack.addStatus("Error", Message="Example error");
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Error)
 
             % Dismiss the dialog that popped up.
-            testCase.dismissDialog("uiconfirm", testCase.Figure)
+            testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
 
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
-        function tDismissBlockingError(testCase)
-            % Dismiss the blocking error dialog and check the stack is
-            % updated accordingly.
-            testCase.assumeFail("not working - review")
-            fcn = @() testCase.Stack.addStatus("Error", Message="Example error", IsBlocking=true);
+        function tAddStatusWithCompletionCallback(testCase)
+            
+            status = testCase.Stack.addStatus("Error", Message="Example error", CompletionFcn=@(status) setTestCaseTempToMessageName(status, testCase));
 
-            testCase.dismissDialog("uiconfirm", testCase.Figure, fcn)
+            testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
 
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
+
+            testCase.verifyEqual(testCase.TestField, status);
+
+            function setTestCaseTempToMessageName(status, testCase)
+                testCase.TestField = status;
+            end
         end
 
-        function tCleanupNonBlockingError(testCase)
+        function tCleanupError(testCase)
             % Deleting the status's cleanup object should clear it from the
             % stack and dismiss the dialog.
             [~, cleanupObj] = testCase.Stack.addStatus("Error", Message="Example error"); %#ok<ASGLU>
@@ -59,7 +64,7 @@ classdef tPopupView < matlab.uitest.TestCase
 
             clear cleanupObj
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
-            testCase.verifyError(@() testCase.dismissDialog("uiconfirm", testCase.Figure), ...
+            testCase.verifyError(@() testCase.chooseDialog("uiconfirm", testCase.Figure, "OK"), ...
                 "MATLAB:uiautomation:Driver:NoConfirmationDialogsFound")
         end
 
@@ -73,13 +78,13 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifySize(testCase.Stack.Statuses, [1 4])
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Message, "S3")
 
-            testCase.dismissDialog("uiconfirm", testCase.Figure)
+            testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Message, "S2")
 
-            testCase.dismissDialog("uiconfirm", testCase.Figure)
+            testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Message, "S1")
 
-            testCase.dismissDialog("uiconfirm", testCase.Figure)
+            testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
@@ -93,15 +98,15 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.assertSize(testCase.Stack.Statuses, [1 1])
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
 
-            testCase.verifyError(@() testCase.dismissDialog("uiconfirm", testCase.Figure), ...
+            testCase.verifyError(@() testCase.chooseDialog("uiconfirm", testCase.Figure, "OK"), ...
                 "MATLAB:uiautomation:Driver:NoConfirmationDialogsFound")
         end
 
-        function tAddNonBlockingError(testCase)
-            status = testCase.Stack.addError(MException("a:b:c", "test"), IsBlocking=false);
+        function tAddError(testCase)
+            status = testCase.Stack.addError(MException("a:b:c", "test"));
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Error)
 
-            testCase.dismissDialog("uiconfirm", testCase.Figure)
+            testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
 
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
             testCase.verifyTrue(status.IsComplete)
@@ -135,7 +140,6 @@ classdef tPopupView < matlab.uitest.TestCase
             status = testCase.Stack.addStatus("Running", Message="test");
             pause(0.5)
 
-            testCase.verifyFalse(status.IsBlocking)
             testCase.verifyFalse(status.IsComplete)
 
             status.complete();
@@ -209,12 +213,13 @@ classdef tPopupView < matlab.uitest.TestCase
         end
 
         function tRunCommandWithError(testCase)
-            % Running a command that errors should result in a blocking
-            % dialog.
-            testCase.assumeFail("not working - review")
-            fcn = @() testCase.Stack.run(@() error("test"));
+            % Automatically click "ok"
+            testCase.Stack.run(@() error("test"));
 
-            testCase.dismissDialog("uiconfirm", testCase.Figure, fcn)
+            testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
+
+            testCase.assertSize(testCase.Stack.Statuses, [1 1]);
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
         function tTemporaryStatus(testCase)
@@ -276,11 +281,10 @@ classdef tPopupView < matlab.uitest.TestCase
         end
 
         function tNonVisibileStatus(testCase)
-            % Setting the status as non-visible makes it not appear as a
-            % popup, even if IsBlocking is enabled.
-            testCase.Stack.addStatus("Warning", IsVisible=false, IsBlocking=true);
+            % Setting the status as non-visible makes it not appear as a popup
+            testCase.Stack.addStatus("Warning", IsVisible=false);
             
-            testCase.verifyError(@() testCase.dismissDialog("uiconfirm", testCase.Figure), ...
+            testCase.verifyError(@() testCase.chooseDialog("uiconfirm", testCase.Figure, "OK"), ...
                 "MATLAB:uiautomation:Driver:NoConfirmationDialogsFound")
         end
 
@@ -294,7 +298,7 @@ classdef tPopupView < matlab.uitest.TestCase
 
             testCase.verifyFalse(popupView.ShowSuccess)
             testCase.verifyEqual(newstack.CurrentStatus.Type, statusMgr.StatusType.Success)
-            testCase.verifyError(@() testCase.dismissDialog("uiconfirm", testCase.Figure), ...
+            testCase.verifyError(@() testCase.chooseDialog("uiconfirm", testCase.Figure, "OK"), ...
                 "MATLAB:uiautomation:Driver:NoConfirmationDialogsFound")
         end
 

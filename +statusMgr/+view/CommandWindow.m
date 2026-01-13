@@ -80,16 +80,14 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
             end
 
             if ~isempty(status.Data) ...
-                    && isa(status.Data, "MException")...
-                    && status.IsBlocking
-                throwAsCaller(status.Data);
-                % Error ends here
+                    && isa(status.Data, "MException")
+
+                rep = string(status.Data.getReport);
+                rep = strrep(rep, "\", "\\");
+                obj.writeToTerminal(rep, 2);
             else
                 message = "Error: " + status.Message;
-                if status.IsBlocking
-                    error(message)
-                end
-                obj.writeToTerminal(message);
+                obj.writeToTerminal(message, 2);
             end
         end
 
@@ -128,11 +126,16 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
             obj.writeToTerminal(message);
         end
 
-        function writeToTerminal(obj, message)
+        function writeToTerminal(obj, message, id)
+            arguments
+                obj (1,1)
+                message (1,1) string
+                id (1,1) double {mustBeMember(id, [1,2])} = 1 % 1 for normal, 2 for error
+            end
             if message ~= obj.PreviousMessage
                 % Only display the message if it's different from the
                 % previous one to avoid spamming
-                disp(message)
+                fprintf(id, message + "\n");
             else
                 % Otherwise print a dot for repeated messages to indicate 
                 % a repeating message

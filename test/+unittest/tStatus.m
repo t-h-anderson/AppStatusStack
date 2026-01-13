@@ -16,7 +16,6 @@ classdef tStatus < matlab.unittest.TestCase
             testCase.verifyEqual(S.Value, NaN);
             testCase.verifyEmpty(S.Data);
             testCase.verifyFalse(S.IsTemporary);
-            testCase.verifyFalse(S.IsBlocking);
             testCase.verifyFalse(S.IsComplete);
         end
 

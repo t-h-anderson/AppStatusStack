@@ -75,8 +75,8 @@ classdef Stack < statusMgr.internal.StackInterface
                 nvp.Value (1,1) double = NaN
                 nvp.Data = []
                 nvp.Silent (1,1) logical = false
-                nvp.IsBlocking (1,1) logical = false
                 nvp.CreateCleanupObj (1,1) logical = true
+                nvp.CompletionFcn (1,:) function_handle {mustBeScalarOrEmpty} = function_handle.empty(1,0)
             end
 
             if nargout < 2
@@ -90,7 +90,7 @@ classdef Stack < statusMgr.internal.StackInterface
                 "Value", nvp.Value, ...
                 "IsTemporary", nvp.IsTemporary, ...
                 "Data", nvp.Data, ...
-                "IsBlocking", nvp.IsBlocking);
+                "CompletionFcn", nvp.CompletionFcn);
 
             [status, cleanupObj] = objs.add(newStatus, ...
                 "Silent", nvp.Silent, ...
@@ -156,7 +156,6 @@ classdef Stack < statusMgr.internal.StackInterface
                 nvp.IsVisible (1,1) logical = true
                 nvp.IsTemporary (1,1) logical = false
                 nvp.Silent (1,1) logical = false
-                nvp.IsBlocking (1,1) logical = true
                 nvp.CreateCleanupObj (1,1) logical = true
             end
 

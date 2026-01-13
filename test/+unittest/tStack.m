@@ -35,29 +35,17 @@ classdef tStack < matlab.unittest.TestCase
             S = statusMgr.Stack();
             S.addStatus("Info", Message="t1", Value=10, IsTemporary=true, ...
                 Identifier="id1", Data={1,2}, MessageShort="m1", ...
-                IsBlocking=true, IsVisible=false);
+                IsVisible=false);
 
             testCase.verifySize(S.Statuses, [1 2])
             testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Info)
             testCase.verifyEqual(S.CurrentStatus.Message, "t1")
             testCase.verifyEqual(S.CurrentStatus.MessageShort, "m1")
             testCase.verifyTrue(S.CurrentStatus.IsTemporary)
-            testCase.verifyTrue(S.CurrentStatus.IsBlocking)
             testCase.verifyFalse(S.CurrentStatus.IsVisible)
             testCase.verifyEqual(S.CurrentStatus.Value, 10)
             testCase.verifyEqual(S.CurrentStatus.Identifier, "id1")
             testCase.verifyEqual(S.CurrentStatus.Data, {1,2})
-        end
-
-        function tAddBlockingStatus(testCase)
-            % Add a blocking status with a message.
-            S = statusMgr.Stack();
-            S.addStatus("Success", Message="Test", IsBlocking=true);
-
-            testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Success)
-            testCase.verifyEqual(S.CurrentStatus.Message, "Test")
-            testCase.verifyEqual(S.CurrentStatus.MessageShort, "Test")
-            testCase.verifyTrue(S.CurrentStatus.IsBlocking)
         end
 
         function tAddStatusWithCleanup(testCase)
@@ -80,16 +68,6 @@ classdef tStack < matlab.unittest.TestCase
             S.addStatus("Error", Message="S1");
             S.addStatus("Success", Message="S2");
             S.addStatus("Success", Message="S3");
-
-            testCase.verifySize(S.Statuses, [1 4])
-            testCase.verifyEqual(S.CurrentStatus.Message, "S3")
-        end
-
-        function tAddMultipleBlockingStatuses(testCase)
-            S = statusMgr.Stack();
-            S.addStatus("Success", Message="S1", IsBlocking=true);
-            S.addStatus("Success", Message="S2");
-            S.addStatus("Success", Message="S3", IsBlocking=true);
 
             testCase.verifySize(S.Statuses, [1 4])
             testCase.verifyEqual(S.CurrentStatus.Message, "S3")
@@ -157,7 +135,7 @@ classdef tStack < matlab.unittest.TestCase
 
             t = S.table();
 
-            testCase.assertSize(t, [3 9])
+            testCase.assertSize(t, [3 8])
             testCase.verifyEqual(t.Type, ["Idle"; "RunningCancellable"; "Warning"])
         end
 
@@ -169,7 +147,6 @@ classdef tStack < matlab.unittest.TestCase
             testCase.verifyEqual(S.CurrentStatus.Message, "test")
             testCase.assertClass(S.CurrentStatus.Data, "MException")
             testCase.verifyEqual(S.CurrentStatus.Data.identifier, 'a:b:c')
-            testCase.verifyTrue(S.CurrentStatus.IsBlocking)
             testCase.verifyEqual(S.CurrentStatus.Identifier, "a:b:c")
         end
 
@@ -196,7 +173,6 @@ classdef tStack < matlab.unittest.TestCase
 
             testCase.assertEqual(S.CurrentStatus.Type, statusMgr.StatusType.Error)
             testCase.verifyEqual(S.CurrentStatus.Data.message, 'test')
-            testCase.verifyTrue(S.CurrentStatus.IsBlocking)
         end
 
         function tRunMultipleCommands(testCase)
