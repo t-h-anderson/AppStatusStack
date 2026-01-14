@@ -1,3 +1,9 @@
+Update Version 1.5.0
+- Massive improvements to stability and testing
+- Removal of blocking behaviour, instead respond to status completion or supply a status complete callback
+- Rename to Status Manager
+- More package renaming for generalisation
+
 Bug-fix Version 1.4.2
 - Clean up warning state on run error
 - Add id to status stack to aid debug workflows
