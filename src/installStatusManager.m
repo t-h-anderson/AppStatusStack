@@ -1,4 +1,4 @@
-function installappStatus(nvp)
+function installStatusManager(nvp)
 % Install method to make sure appStatus is installed and up-to-date
 % Include in other projects' startup to automatically install this
 % dependency

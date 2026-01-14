@@ -5,9 +5,23 @@
     <param.email>toma@mathworks.com</param.email>
     <param.company>MathWorks</param.company>
     <param.summary>Allows management of app status</param.summary>
-    <param.description>Update Version 1.4.0
+    <param.description>Update Version 1.5.0
 
-State is shown when view is created
+Update Version 1.5.0
+- Massive improvements to stability and testing
+- Removal of blocking behaviour, instead respond to status completion or supply a status complete callback
+
+Bug-fix Version 1.4.2
+- Clean up warning state on run error
+- Add id to status stack to aid debug workflows
+
+Bug-fix Version 1.4.1
+- Bug fix for clean-up of state stacks
+- Prototype of cancellable progress bar
+
+Update Version 1.4.0
+
+- State is shown when view is created
 - Renamed state to condition to avoid state/status confusion
 - Removed push, pop and top methods to streamline app
 - Improved popup behaviour:
@@ -16,12 +30,12 @@ State is shown when view is created
 
 Update Version 1.3
 
-State is shown when view is created
-Added push, pop and top methods for those who are used to this terminology with stacks
-Changed randomString to matlab.lang.internal.uuid
-Tweaks to accessability of properties and methods
-Add status now accepts a status as input
-Added Getting Started.mlx
+- State is shown when view is created
+- Added push, pop and top methods for those who are used to this terminology with stacks
+- Changed randomString to matlab.lang.internal.uuid
+- Tweaks to accessability of properties and methods
+- Add status now accepts a status as input
+- Added Getting Started.mlx
 Warning: Syntax changed for add status. Arguments now as name value pairs.</param.description>
     <param.screenshot />
     <param.version>1.4</param.version>
