@@ -5,6 +5,7 @@ classdef Status < matlab.mixin.SetGet
         Identifier (1,1) string = "" % Semantic identified, for filtering/suppression
         Type (1,1) statusMgr.StatusType = statusMgr.StatusType.Idle
         Message (1,1) string = ""
+        Title (1,1) string = ""
         MessageShort (1,1) string = string(NaN)
         Value (1,1) double = NaN
         Data = [] % Pocket to store data
@@ -34,6 +35,7 @@ classdef Status < matlab.mixin.SetGet
             arguments
                 condition (1,1) statusMgr.StatusType = statusMgr.StatusType.Idle
                 message (1,1) string = ""
+                nvp.Title (1,1) string = ""
                 nvp.Identifier (1,1) string = ""
                 nvp.Value (1,1) double = NaN
                 nvp.IsVisible (1,1) logical = true

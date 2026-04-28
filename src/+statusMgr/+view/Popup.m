@@ -232,6 +232,13 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
 
         function updateProgressDlg(obj, status, cancellable)
             obj.ProgressDlgStatus = status;
+
+            if status.Title ~= "" && ~ismissing(status.Title)
+                obj.ProgressDlg.Title = status.Title;
+            else
+                obj.ProgressDlg.Title = "Running";
+            end
+
             if ~strcmp(string([obj.ProgressDlg.Message]), status.Message)
                 obj.ProgressDlg.Message = status.Message;
             end
