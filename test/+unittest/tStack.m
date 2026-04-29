@@ -48,6 +48,22 @@ classdef tStack < matlab.unittest.TestCase
             testCase.verifyEqual(S.CurrentStatus.Data, {1,2})
         end
 
+        function tAddStatusWithTitle(testCase)
+            % Title is threaded through addStatus to the Status object.
+            S = statusMgr.Stack();
+            S.addStatus("Running", Title="Phase 1");
+
+            testCase.verifyEqual(S.CurrentStatus.Title, "Phase 1")
+        end
+
+        function tAddStatusDefaultTitle(testCase)
+            % Default Title is an empty string.
+            S = statusMgr.Stack();
+            S.addStatus("Running");
+
+            testCase.verifyEqual(S.CurrentStatus.Title, "")
+        end
+
         function tAddStatusWithCleanup(testCase)
             % Request the second output (cleanup object) when adding a
             % status.
@@ -135,8 +151,10 @@ classdef tStack < matlab.unittest.TestCase
 
             t = S.table();
 
-            testCase.assertSize(t, [3 8])
+            testCase.assertSize(t, [3 10])
             testCase.verifyEqual(t.Type, ["Idle"; "RunningCancellable"; "Warning"])
+            testCase.verifyClass(t.Timestamp, "datetime")
+            testCase.verifyClass(t.User, "string")
         end
 
         function tAddError(testCase)
@@ -281,6 +299,50 @@ classdef tStack < matlab.unittest.TestCase
             S.removeStatus(statusMgr.Status("Running"));
 
             testCase.verifyEmpty(S);
+        end
+
+        function tSuppressIdentifier(testCase)
+            % A suppressed identifier causes matching statuses to be hidden.
+            S = statusMgr.Stack();
+            S.suppressIdentifier("my:id");
+
+            S.addStatus("Warning", Identifier="my:id", Message="suppressed");
+            S.addStatus("Warning", Identifier="other:id", Message="visible");
+
+            testCase.verifyFalse(S.Statuses(2).IsVisible)
+            testCase.verifyTrue(S.Statuses(3).IsVisible)
+        end
+
+        function tSuppressDuplicateIdentifier(testCase)
+            % Suppressing the same identifier twice only adds it once.
+            S = statusMgr.Stack();
+            S.suppressIdentifier("my:id");
+            S.suppressIdentifier("my:id");
+
+            testCase.verifySize(S.SuppressedIdentifiers, [1 1])
+        end
+
+        function tUnsuppressIdentifier(testCase)
+            % After unsuppressing, newly added statuses with that identifier
+            % are visible again.
+            S = statusMgr.Stack();
+            S.suppressIdentifier("my:id");
+            S.unsuppressIdentifier("my:id");
+
+            S.addStatus("Warning", Identifier="my:id", Message="visible again");
+
+            testCase.verifyTrue(S.CurrentStatus.IsVisible)
+            testCase.verifyEmpty(S.SuppressedIdentifiers)
+        end
+
+        function tSuppressDoesNotAffectNoIdentifier(testCase)
+            % Statuses with no identifier are never affected by suppression.
+            S = statusMgr.Stack();
+            S.suppressIdentifier("my:id");
+
+            S.addStatus("Warning", Message="no id");
+
+            testCase.verifyTrue(S.CurrentStatus.IsVisible)
         end
 
         function tMonitorable(testCase)

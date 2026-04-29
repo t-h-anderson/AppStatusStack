@@ -10,6 +10,7 @@ classdef Status < matlab.mixin.SetGet
         Value (1,1) double = NaN
         Data = [] % Pocket to store data
         Timestamp (1,1) datetime
+        User (1,1) string = ""
 
         IsTemporary (1,1) logical = false % Remove when next status added
         IsComplete (1,1) logical = false % Has the status been completed
@@ -48,8 +49,13 @@ classdef Status < matlab.mixin.SetGet
             % Random string for ID
             obj.ID = statusMgr.util.uuid();
 
-            % Set timestamp at creation time.
+            % Capture who and when the status was created.
             obj.Timestamp = datetime("now");
+            user = getenv("USER");
+            if isempty(user)
+                user = getenv("USERNAME");
+            end
+            obj.User = string(user);
 
             obj.Type = condition;
             obj.Message = message;
@@ -94,6 +100,8 @@ classdef Status < matlab.mixin.SetGet
         function tbl = table(objs)
 
             ID = string([objs.ID])';
+            Timestamp = [objs.Timestamp]';
+            User = string([objs.User])';
             IsVisible = [objs.IsVisible]';
             Type = string([objs.Type])';
             Message = string([objs.Message])';
@@ -102,7 +110,7 @@ classdef Status < matlab.mixin.SetGet
             IsTemporary = [objs.IsTemporary]';
             IsComplete = [objs.IsComplete]';
 
-            tbl = table(ID, IsVisible, Type, Message, Value, Data, IsTemporary, IsComplete);
+            tbl = table(ID, Timestamp, User, IsVisible, Type, Message, Value, Data, IsTemporary, IsComplete);
         end
 
         function delete(objs)
