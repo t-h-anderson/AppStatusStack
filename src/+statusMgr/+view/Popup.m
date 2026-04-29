@@ -214,10 +214,16 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
 
                 % This doesn't work - Known bug https://komodo.mathworks.com/main/gecko/view?Record=2984852
                 % obj.CancelListener = addlistener(obj.ProgressDlg, "CancelRequested", "PostSet", @(src, event) obj.notifyStackOfCancel());
+
+                % Use UserData + a named function to avoid capturing obj in the closure.
+                % A closure callback would create obj → timer → obj, preventing GC of the view.
                 s = warning();
                 warning("off");
                 stopTimer(obj.CancelTimer);
-                obj.CancelTimer = timer("TimerFcn", @(~,~)obj.checkIfCancelPressed(), "Period", 1, "TasksToExecute", inf, "ExecutionMode", "fixedSpacing");
+                t = timer("Period", 1, "TasksToExecute", inf, "ExecutionMode", "fixedSpacing");
+                t.UserData = struct("dlg", obj.ProgressDlg, "status", obj.ProgressDlgStatus, "stack", obj.Stack);
+                t.TimerFcn = @checkCancelTimerFcn;
+                obj.CancelTimer = t;
                 obj.CancelTimer.start();
                 warning(s)
 
@@ -227,6 +233,14 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
 
         function updateProgressDlg(obj, status, cancellable)
             obj.ProgressDlgStatus = status;
+
+            % Keep the timer's UserData.status in sync so checkCancelTimerFcn
+            % always completes the correct status when cancel is pressed.
+            if ~isempty(obj.CancelTimer) && isvalid(obj.CancelTimer)
+                data = obj.CancelTimer.UserData;
+                data.status = status;
+                obj.CancelTimer.UserData = data;
+            end
 
             if ~ismissing(status.Title) && status.Title ~= ""
                 obj.ProgressDlg.Title = status.Title;
@@ -272,16 +286,6 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
             end
         end
 
-        function checkIfCancelPressed(obj)
-
-            if obj.hasValidProgressDlg() ...
-                    && obj.ProgressDlg.CancelRequested
-                stopTimer(obj.CancelTimer);
-                status = obj.ProgressDlgStatus;
-                status.complete();
-                obj.Stack.removeStatus(status);
-            end
-        end
     end % methods
 
     methods (Static)
@@ -296,6 +300,25 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
     end
 
 end % classdef
+
+function checkCancelTimerFcn(t, ~)
+% File-local function used as the CancelTimer callback.
+% Reads state from t.UserData so it captures no reference to the Popup obj,
+% breaking the obj → timer → obj cycle that would prevent garbage collection.
+    data = t.UserData;
+    if isempty(data.dlg) || ~isvalid(data.dlg)
+        stop(t); % Dialog gone — stop polling; deleteProgressDlg will delete the timer
+        return;
+    end
+    if data.dlg.CancelRequested
+        stop(t);
+        data.status.complete();
+        data.stack.removeStatus(data.status);
+        % removeStatus fires StatusUpdated → standardDisplay → checkProgressDlg
+        % → deleteProgressDlg → stopTimer, which deletes this timer after
+        % the callback returns.
+    end
+end
 
 function stopTimer(timer)
 
