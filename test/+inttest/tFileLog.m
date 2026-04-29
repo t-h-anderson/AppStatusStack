@@ -198,6 +198,24 @@ classdef tFileLog < matlab.uitest.TestCase
             testCase.verifyEqual(lines(5), "")
         end
 
+        function tNonVisibleStatus(testCase)
+            % A status with IsVisible=false is not written to the log file.
+            import matlab.unittest.constraints.IsFile
+            testCase.Stack.addStatus("Warning", Message="hidden", IsVisible=false);
+            logfile = fullfile(testCase.FileLogView.LogFolder, testCase.FileLogView.LogFilename);
+            testCase.verifyThat(logfile, ~IsFile)
+        end
+
+        function tSuppressedIdentifier(testCase)
+            % A status whose identifier is suppressed on the stack is not
+            % written to the log file.
+            import matlab.unittest.constraints.IsFile
+            testCase.Stack.suppressIdentifier("my:id");
+            testCase.Stack.addStatus("Warning", Identifier="my:id", Message="suppressed");
+            logfile = fullfile(testCase.FileLogView.LogFolder, testCase.FileLogView.LogFilename);
+            testCase.verifyThat(logfile, ~IsFile)
+        end
+
         function tDisplayIdle(testCase)
             import matlab.unittest.constraints.IsFile
             newFileLogView = statusMgr.view.FileLog(testCase.Stack, ...

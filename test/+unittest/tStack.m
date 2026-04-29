@@ -301,6 +301,50 @@ classdef tStack < matlab.unittest.TestCase
             testCase.verifyEmpty(S);
         end
 
+        function tSuppressIdentifier(testCase)
+            % A suppressed identifier causes matching statuses to be hidden.
+            S = statusMgr.Stack();
+            S.suppressIdentifier("my:id");
+
+            S.addStatus("Warning", Identifier="my:id", Message="suppressed");
+            S.addStatus("Warning", Identifier="other:id", Message="visible");
+
+            testCase.verifyFalse(S.Statuses(2).IsVisible)
+            testCase.verifyTrue(S.Statuses(3).IsVisible)
+        end
+
+        function tSuppressDuplicateIdentifier(testCase)
+            % Suppressing the same identifier twice only adds it once.
+            S = statusMgr.Stack();
+            S.suppressIdentifier("my:id");
+            S.suppressIdentifier("my:id");
+
+            testCase.verifySize(S.SuppressedIdentifiers, [1 1])
+        end
+
+        function tUnsuppressIdentifier(testCase)
+            % After unsuppressing, newly added statuses with that identifier
+            % are visible again.
+            S = statusMgr.Stack();
+            S.suppressIdentifier("my:id");
+            S.unsuppressIdentifier("my:id");
+
+            S.addStatus("Warning", Identifier="my:id", Message="visible again");
+
+            testCase.verifyTrue(S.CurrentStatus.IsVisible)
+            testCase.verifyEmpty(S.SuppressedIdentifiers)
+        end
+
+        function tSuppressDoesNotAffectNoIdentifier(testCase)
+            % Statuses with no identifier are never affected by suppression.
+            S = statusMgr.Stack();
+            S.suppressIdentifier("my:id");
+
+            S.addStatus("Warning", Message="no id");
+
+            testCase.verifyTrue(S.CurrentStatus.IsVisible)
+        end
+
         function tMonitorable(testCase)
             % If a monitorable class calls setStatus within its code it
             % gets picked up by the status stack.

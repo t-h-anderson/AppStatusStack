@@ -11,6 +11,10 @@ classdef Stack < statusMgr.internal.StackInterface
         StackMonitorableListeners
     end
 
+    properties
+        SuppressedIdentifiers (1,:) string = string.empty(1,0)
+    end
+
     properties (Hidden)
         ID
     end
@@ -372,6 +376,28 @@ classdef Stack < statusMgr.internal.StackInterface
 
     end
 
+    methods % Suppression
+
+        function suppressIdentifier(obj, id)
+            arguments
+                obj (1,1) statusMgr.Stack
+                id (1,1) string
+            end
+            if ~ismember(id, obj.SuppressedIdentifiers)
+                obj.SuppressedIdentifiers(end+1) = id;
+            end
+        end
+
+        function unsuppressIdentifier(obj, id)
+            arguments
+                obj (1,1) statusMgr.Stack
+                id (1,1) string
+            end
+            obj.SuppressedIdentifiers(obj.SuppressedIdentifiers == id) = [];
+        end
+
+    end
+
     methods % Util
 
         function tbl = table(obj)
@@ -390,6 +416,11 @@ classdef Stack < statusMgr.internal.StackInterface
             % Remove previous status if temporary
             while obj.CurrentStatus.IsTemporary
                 obj.removeLastStatus(Silent=true);
+            end
+
+            % Hide status if its identifier is suppressed
+            if newStatus.Identifier ~= "" && ismember(newStatus.Identifier, obj.SuppressedIdentifiers)
+                newStatus.IsVisible = false;
             end
 
             % Add the status

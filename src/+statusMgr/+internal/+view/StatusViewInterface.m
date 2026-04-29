@@ -36,6 +36,11 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
 
             %Get the latest status
             latestStatus = stack.CurrentStatus;
+
+            if ~latestStatus.IsVisible
+                return
+            end
+
             latestType = latestStatus.Type;
 
             % Save the status in case this is needed for a view

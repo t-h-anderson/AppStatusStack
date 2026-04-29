@@ -85,6 +85,20 @@ classdef tCommandWindow < matlab.uitest.TestCase
             testCase.verifyEqual(newview.PreviousMessage, "idle 2");
         end
 
+        function tNonVisibleStatus(testCase)
+            % A status with IsVisible=false is not printed to the terminal.
+            testCase.Stack.addStatus("Warning", Message="hidden", IsVisible=false);
+            testCase.verifyTrue(ismissing(testCase.CommandWindowView.PreviousMessage))
+        end
+
+        function tSuppressedIdentifier(testCase)
+            % Statuses whose identifier is suppressed on the stack are not
+            % printed to the terminal.
+            testCase.Stack.suppressIdentifier("my:id");
+            testCase.Stack.addStatus("Warning", Identifier="my:id", Message="suppressed");
+            testCase.verifyTrue(ismissing(testCase.CommandWindowView.PreviousMessage))
+        end
+
         function tUpdateMessageAndValue(testCase)
             status = testCase.Stack.addStatus("Running", Message="r1", Value=1);
 

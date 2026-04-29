@@ -125,37 +125,32 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
                 icon (1,1) string = "error"
             end % arguments
 
-            if status.IsVisible
+            if isvalid(obj.Figure)
 
-                % Display the alert
-                if isvalid(obj.Figure)
+                % First time showing the status, so increment the
+                % counter
+                numPopups = obj.numberDialogues(obj.Stack);
 
-                    % First time showing the status, so increment the
-                    % counter
-                    numPopups = obj.numberDialogues(obj.Stack);
-
-                    if numPopups > 1
-                        title = title + " (" + numPopups + " alerts)";
-                    end
-                    
-                    removeStatusFn = @(src, event) obj.completeIfClicked(src, event, status);
-                    
-                    if numPopups == 1
-                        options = "OK";
-                    else
-                        options = ["Close All", "OK"];
-                    end
-
-                    uiconfirm(obj.Figure, ...
-                        status.MessageShort, ...
-                        title, ...
-                        "Options", options, ...
-                        "Icon", icon, ...
-                        "CloseFcn", removeStatusFn);
-
-                    obj.HasPopup = true;
-
+                if numPopups > 1
+                    title = title + " (" + numPopups + " alerts)";
                 end
+
+                removeStatusFn = @(src, event) obj.completeIfClicked(src, event, status);
+
+                if numPopups == 1
+                    options = "OK";
+                else
+                    options = ["Close All", "OK"];
+                end
+
+                uiconfirm(obj.Figure, ...
+                    status.MessageShort, ...
+                    title, ...
+                    "Options", options, ...
+                    "Icon", icon, ...
+                    "CloseFcn", removeStatusFn);
+
+                obj.HasPopup = true;
 
             end
 
