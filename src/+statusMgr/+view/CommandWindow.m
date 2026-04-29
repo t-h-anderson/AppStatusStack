@@ -128,6 +128,26 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
             obj.writeToTerminal(message);
         end
 
+        function handleInputRequest(obj, status)
+            arguments
+                obj (1,1) statusMgr.view.CommandWindow
+                status (1,1) statusMgr.Status
+            end
+
+            status.transitionInputState(statusMgr.StatusType.AwaitingInput);
+
+            prompt = status.Message;
+            if prompt == "", prompt = "Enter value"; end
+            defaultVal = string(status.Data);
+
+            raw = string(input(prompt + ": ", "s"));
+            if raw == ""
+                raw = defaultVal;
+            end
+
+            status.transitionInputState(statusMgr.StatusType.ValueSupplied, raw);
+        end
+
         function writeToTerminal(obj, message, id)
             arguments
                 obj (1,1)
