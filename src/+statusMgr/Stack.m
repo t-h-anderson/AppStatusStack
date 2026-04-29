@@ -376,6 +376,60 @@ classdef Stack < statusMgr.internal.StackInterface
 
     end
 
+    methods % User input
+
+        function value = requestInput(obj, prompt, nvp)
+            % Block until a view supplies user input, or return DefaultValue
+            % after Timeout seconds if no view claims the request.
+            %
+            % value = requestInput(prompt)
+            % value = requestInput(prompt, DefaultValue="fallback", Timeout=5, Title="...")
+            arguments
+                obj (1,1) statusMgr.Stack
+                prompt (1,1) string = ""
+                nvp.DefaultValue (1,1) string = ""
+                nvp.Title (1,1) string = "Input Required"
+                nvp.Timeout (1,1) double {mustBePositive} = 0.5
+            end
+
+            % Push RequestingInput. Listeners fire synchronously here, so
+            % a view may have already claimed (or even completed) the
+            % request by the time addStatus returns.
+            status = obj.addStatus(statusMgr.StatusType.RequestingInput, ...
+                Message=prompt, ...
+                Title=nvp.Title, ...
+                Data=nvp.DefaultValue);
+            cleanupStatus = onCleanup(@() obj.removeStatus(status)); %#ok<NASGU>
+
+            % Poll until a view claims the request or the timeout expires.
+            t = tic;
+            while status.Type == statusMgr.StatusType.RequestingInput ...
+                    && toc(t) < nvp.Timeout
+                drawnow;
+                pause(0.05);
+            end
+
+            % Nobody claimed it in time — return the default.
+            if status.Type == statusMgr.StatusType.RequestingInput
+                value = nvp.DefaultValue;
+                return;
+            end
+
+            % A view claimed it; wait indefinitely for ValueSupplied.
+            while status.Type == statusMgr.StatusType.AwaitingInput
+                drawnow;
+                pause(0.05);
+            end
+
+            if status.Type == statusMgr.StatusType.ValueSupplied
+                value = status.Message;
+            else
+                value = nvp.DefaultValue;
+            end
+        end
+
+    end
+
     methods % Suppression
 
         function suppressIdentifier(obj, id)

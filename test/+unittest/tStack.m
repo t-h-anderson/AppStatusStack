@@ -358,6 +358,108 @@ classdef tStack < matlab.unittest.TestCase
             testCase.verifyEqual(S.CurrentStatus.Message, "test")
         end
 
+        % --- requestInput ---------------------------------------------------
+
+        function tRequestInputReturnsDefaultWhenNoViewAttached(testCase)
+            % With no views listening, requestInput returns DefaultValue
+            % once the timeout elapses.
+            S = statusMgr.Stack();
+            value = S.requestInput("Prompt", DefaultValue="fallback", Timeout=0.1);
+
+            testCase.verifyEqual(value, "fallback")
+        end
+
+        function tRequestInputDefaultIsEmptyStringWhenNotSpecified(testCase)
+            % Default value is "" when not supplied by the caller.
+            S = statusMgr.Stack();
+            value = S.requestInput("Prompt", Timeout=0.1);
+
+            testCase.verifyEqual(value, "")
+        end
+
+        function tRequestInputCleansUpStatusAfterReturn(testCase)
+            % The RequestingInput status is removed from the stack once
+            % requestInput returns.
+            S = statusMgr.Stack();
+            S.requestInput("Prompt", Timeout=0.1);
+
+            testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Idle)
+            testCase.verifySize(S.Statuses, [1 1])
+        end
+
+        function tRequestInputReturnedValueFromSimulatedView(testCase)
+            % Simulate a view that claims RequestingInput and supplies a
+            % value. Verify requestInput returns that value.
+            S = statusMgr.Stack();
+
+            % After a short delay, a timer acts as a mock view.
+            t = timer("StartDelay", 0.1, "TimerFcn", @(~,~) claimAndSupply(S));
+            testCase.addTeardown(@() delete(t));
+            start(t);
+
+            value = S.requestInput("Enter name", DefaultValue="default", Timeout=3);
+
+            testCase.verifyEqual(value, "supplied-value")
+
+            function claimAndSupply(stack)
+                s = stack.CurrentStatus;
+                if s.Type == statusMgr.StatusType.RequestingInput
+                    s.transitionInputState(statusMgr.StatusType.AwaitingInput);
+                    s.transitionInputState(statusMgr.StatusType.ValueSupplied, "supplied-value");
+                end
+            end
+        end
+
+        function tRequestInputUsesDefaultWhenViewClaimsButStackRemoved(testCase)
+            % If the status is removed externally while AwaitingInput,
+            % requestInput falls through and returns the default.
+            S = statusMgr.Stack();
+
+            t = timer("StartDelay", 0.1, "TimerFcn", @(~,~) claimOnly(S));
+            t2 = timer("StartDelay", 0.3, "TimerFcn", @(~,~) S.removeAllStatuses());
+            testCase.addTeardown(@() delete(t));
+            testCase.addTeardown(@() delete(t2));
+            start(t);
+            start(t2);
+
+            value = S.requestInput("Prompt", DefaultValue="safe", Timeout=3);
+
+            testCase.verifyEqual(value, "safe")
+
+            function claimOnly(stack)
+                s = stack.CurrentStatus;
+                if s.Type == statusMgr.StatusType.RequestingInput
+                    s.transitionInputState(statusMgr.StatusType.AwaitingInput);
+                end
+            end
+        end
+
+        function tRequestInputStatusPushedWithCorrectProperties(testCase)
+            % The RequestingInput status carries the prompt in Message,
+            % the title in Title, and the default in Data.
+            S = statusMgr.Stack();
+            capturedStatus = [];
+
+            t = timer("StartDelay", 0.05, "TimerFcn", @(~,~) captureAndSupply(S));
+            testCase.addTeardown(@() delete(t));
+            start(t);
+
+            S.requestInput("My prompt", DefaultValue="def", Title="My title", Timeout=3);
+
+            testCase.verifyEqual(capturedStatus.Message, "My prompt")
+            testCase.verifyEqual(capturedStatus.Title, "My title")
+            testCase.verifyEqual(string(capturedStatus.Data), "def")
+
+            function captureAndSupply(stack)
+                s = stack.CurrentStatus;
+                if s.Type == statusMgr.StatusType.RequestingInput
+                    capturedStatus = s;
+                    s.transitionInputState(statusMgr.StatusType.AwaitingInput);
+                    s.transitionInputState(statusMgr.StatusType.ValueSupplied, "x");
+                end
+            end
+        end
+
     end
 
 

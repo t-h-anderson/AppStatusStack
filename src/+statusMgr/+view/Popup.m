@@ -111,6 +111,37 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
             % Do nothing
         end
 
+        function handleInputRequest(obj, status)
+            if ~obj.isVisible()
+                return;
+            end
+
+            status.transitionInputState(statusMgr.StatusType.AwaitingInput);
+
+            titleStr = status.Title;
+            if titleStr == "", titleStr = "Input Required"; end
+            defaultVal = string(status.Data);
+
+            d = uifigure("Name", titleStr, "Position", [0 0 340 160], ...
+                "Resize", "off", "WindowStyle", "modal");
+            movegui(d, "center");
+
+            uilabel(d, "Text", status.Message, ...
+                "Position", [15 110 310 35], "WordWrap", "on");
+            field = uieditfield(d, "text", ...
+                "Position", [15 65 310 30], "Value", defaultVal);
+            uibutton(d, "push", "Text", "OK", ...
+                "Position", [130 15 80 35], ...
+                "ButtonPushedFcn", @(~,~) onSubmit(field.Value));
+            d.CloseRequestFcn = @(~,~) onSubmit(defaultVal);
+
+            function onSubmit(value)
+                delete(d);
+                status.transitionInputState( ...
+                    statusMgr.StatusType.ValueSupplied, value);
+            end
+        end
+
     end
 
     methods (Access = protected)

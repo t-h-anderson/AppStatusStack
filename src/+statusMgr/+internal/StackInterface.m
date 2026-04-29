@@ -42,6 +42,9 @@ classdef (Abstract) StackInterface < handle
 
         run(obj, fcnHandle)
 
+        % User input
+        value = requestInput(obj, prompt, nvp)
+
         % Util
         tbl = table(obj)
     end

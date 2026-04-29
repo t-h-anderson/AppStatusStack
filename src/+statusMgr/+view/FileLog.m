@@ -108,6 +108,12 @@ classdef FileLog < statusMgr.internal.view.StatusViewInterface
             obj.writeToFile(status);
         end
 
+        function handleInputRequest(obj, status)
+            % FileLog cannot supply interactive input; log the request and
+            % leave it unclaimed so the stack returns the default value.
+            obj.writeToFile(status);
+        end
+
         function writeToFile(obj, status)
             line = "";
 

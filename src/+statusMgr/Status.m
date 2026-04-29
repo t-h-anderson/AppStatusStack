@@ -78,6 +78,25 @@ classdef Status < matlab.mixin.SetGet
             [objs.Value] = deal(value);
         end
 
+        function transitionInputState(obj, newType, value)
+            % Transition status type for the input request protocol.
+            % RequestingInput -> AwaitingInput -> ValueSupplied
+            arguments
+                obj (1,1) statusMgr.Status
+                newType (1,1) statusMgr.StatusType
+                value (1,1) string = ""
+            end
+            validTargets = [statusMgr.StatusType.AwaitingInput, statusMgr.StatusType.ValueSupplied];
+            if ~ismember(newType, validTargets)
+                error("statusMgr:Status:invalidTransition", ...
+                    "transitionInputState only accepts AwaitingInput or ValueSupplied.");
+            end
+            obj.Type = newType;
+            if newType == statusMgr.StatusType.ValueSupplied
+                obj.Message = value;
+            end
+        end
+
         function complete(objs)
             idx = ~[objs.IsComplete];
             toComplete = (objs(idx));

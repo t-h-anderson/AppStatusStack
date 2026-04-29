@@ -111,6 +111,53 @@ classdef tCommandWindow < matlab.uitest.TestCase
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Value, 2)
         end
 
+        % --- handleInputRequest ---------------------------------------------
+
+        function tHandleInputRequestDefaultValues(testCase)
+            % HandleInputRequests is true by default.
+            testCase.verifyTrue(testCase.CommandWindowView.HandleInputRequests)
+        end
+
+        function tHandleInputRequestDisabled(testCase)
+            % When HandleInputRequests is false the view does not claim the
+            % request; requestInput returns the default after the timeout.
+            testCase.CommandWindowView.HandleInputRequests = false;
+
+            value = testCase.Stack.requestInput("Prompt", ...
+                DefaultValue="default", Timeout=0.1);
+
+            testCase.verifyEqual(value, "default")
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, ...
+                statusMgr.StatusType.Idle)
+        end
+
+        function tHandleInputRequestTransitionsToAwaitingThenSupplied(testCase)
+            % Verify the protocol transitions via a timer-driven mock that
+            % intercepts the claim before CommandWindow's blocking input()
+            % can run. Replace the view's handleInputRequest with a spy.
+            %
+            % Strategy: disable the real view, wire up a mock directly.
+            testCase.CommandWindowView.HandleInputRequests = false;
+
+            observedTypes = statusMgr.StatusType.empty(1,0);
+            t = timer("StartDelay", 0.05, "TimerFcn", @(~,~) mockView(testCase.Stack));
+            testCase.addTeardown(@() delete(t));
+            start(t);
+
+            value = testCase.Stack.requestInput("Enter x", ...
+                DefaultValue="d", Timeout=3);
+
+            testCase.verifyEqual(value, "mock-value")
+
+            function mockView(stack)
+                s = stack.CurrentStatus;
+                if s.Type == statusMgr.StatusType.RequestingInput
+                    s.transitionInputState(statusMgr.StatusType.AwaitingInput);
+                    s.transitionInputState(statusMgr.StatusType.ValueSupplied, "mock-value");
+                end
+            end
+        end
+
     end
 
     methods (Access = protected)

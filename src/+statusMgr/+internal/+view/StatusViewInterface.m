@@ -18,6 +18,7 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
         ShowRunning (1,1) logical = true
         ShowSuccess (1,1) logical = true
         ShowIdle (1,1) logical = false
+        HandleInputRequests (1,1) logical = true
     end
 
     methods
@@ -65,6 +66,10 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
                     obj.displaySuccess_(latestStatus);
                 case statusMgr.StatusType.Idle
                     obj.displayIdle_(latestStatus);
+                case statusMgr.StatusType.RequestingInput
+                    obj.handleInputRequest_(latestStatus);
+                case {statusMgr.StatusType.AwaitingInput, statusMgr.StatusType.ValueSupplied}
+                    % Intermediate input states — no display action needed.
                 otherwise
                     error("Unknow status type");
             end % switch
@@ -124,6 +129,12 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
             % Overload to do something before each display trigger
         end
 
+        function handleInputRequest_(obj, status)
+            if obj.HandleInputRequests
+                obj.handleInputRequest(status);
+            end
+        end
+
     end
 
     methods (Abstract)
@@ -145,6 +156,12 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
         displaySuccess(obj, status)
 
         displayIdle(obj, status)
+
+        % Called when a RequestingInput status is seen and HandleInputRequests
+        % is true. Claim the request by calling status.transitionInputState
+        % (AwaitingInput), collect input, then call transitionInputState
+        % (ValueSupplied, value). Do nothing (no claim) to let it time out.
+        handleInputRequest(obj, status)
 
     end
 

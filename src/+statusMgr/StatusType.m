@@ -12,6 +12,9 @@ classdef StatusType
 
     enumeration (Hidden)
         Idle
+        RequestingInput
+        AwaitingInput
+        ValueSupplied
     end
     
 end
