@@ -329,7 +329,7 @@ classdef tPopupView < matlab.uitest.TestCase
             status = testCase.Stack.addStatus("Running", Message="working", Title="My App");
             pause(0.5)
 
-            testCase.verifyEqual(testCase.PopupView.ProgressDlg.Title, "My App")
+            testCase.verifyEqual(string(testCase.PopupView.ProgressDlg.Title), "My App")
 
             status.complete();
         end
@@ -339,7 +339,7 @@ classdef tPopupView < matlab.uitest.TestCase
             status = testCase.Stack.addStatus("Running", Message="working");
             pause(0.5)
 
-            testCase.verifyEqual(testCase.PopupView.ProgressDlg.Title, "Running")
+            testCase.verifyEqual(string(testCase.PopupView.ProgressDlg.Title), "Running")
 
             status.complete();
         end
@@ -350,7 +350,7 @@ classdef tPopupView < matlab.uitest.TestCase
             status = testCase.Stack.addStatus("Running", Message="working", Title=string(missing));
             pause(0.5)
 
-            testCase.verifyEqual(testCase.PopupView.ProgressDlg.Title, "Running")
+            testCase.verifyEqual(string(testCase.PopupView.ProgressDlg.Title), "Running")
 
             status.complete();
         end

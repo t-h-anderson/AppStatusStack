@@ -8,7 +8,7 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
     end
 
     properties
-        PreviousMessage (1,1) string = ""
+        PreviousMessage (1,1) string = string(NaN)
     end
 
     methods
