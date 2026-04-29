@@ -388,15 +388,17 @@ classdef Stack < statusMgr.internal.StackInterface
                 obj (1,1) statusMgr.Stack
                 prompt (1,1) string = ""
                 nvp.DefaultValue (1,1) string = ""
-                nvp.Timeout (1,1) double {mustBePositive} = 5
                 nvp.Title (1,1) string = "Input Required"
+                nvp.Timeout (1,1) double {mustBePositive} = 0.5
             end
 
             % Push RequestingInput. Listeners fire synchronously here, so
             % a view may have already claimed (or even completed) the
             % request by the time addStatus returns.
-            status = obj.addStatus(statusMgr.StatusType.RequestingInput, prompt, ...
-                Title=nvp.Title, Data=nvp.DefaultValue);
+            status = obj.addStatus(statusMgr.StatusType.RequestingInput, ...
+                Message=prompt, ...
+                Title=nvp.Title, ...
+                Data=nvp.DefaultValue);
             cleanupStatus = onCleanup(@() obj.removeStatus(status)); %#ok<NASGU>
 
             % Poll until a view claims the request or the timeout expires.
