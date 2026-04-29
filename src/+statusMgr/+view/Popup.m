@@ -215,15 +215,15 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
                 % This doesn't work - Known bug https://komodo.mathworks.com/main/gecko/view?Record=2984852
                 % obj.CancelListener = addlistener(obj.ProgressDlg, "CancelRequested", "PostSet", @(src, event) obj.notifyStackOfCancel());
 
-                % Use UserData + a named function to avoid capturing obj in the closure.
-                % A closure callback would create obj → timer → obj, preventing GC of the view.
+                % Wrap obj in a WeakReference so the closure does not hold a strong
+                % reference to it. Without this, obj → timer → closure → obj prevents
+                % MATLAB from garbage-collecting the view when the caller clears it.
                 s = warning();
                 warning("off");
                 stopTimer(obj.CancelTimer);
-                t = timer("Period", 1, "TasksToExecute", inf, "ExecutionMode", "fixedSpacing");
-                t.UserData = struct("dlg", obj.ProgressDlg, "status", obj.ProgressDlgStatus, "stack", obj.Stack);
-                t.TimerFcn = @checkCancelTimerFcn;
-                obj.CancelTimer = t;
+                weakObj = matlab.lang.WeakReference(obj);
+                obj.CancelTimer = timer("TimerFcn", @(~,~)checkCancelTimerFcn(weakObj), ...
+                    "Period", 1, "TasksToExecute", inf, "ExecutionMode", "fixedSpacing");
                 obj.CancelTimer.start();
                 warning(s)
 
@@ -233,14 +233,6 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
 
         function updateProgressDlg(obj, status, cancellable)
             obj.ProgressDlgStatus = status;
-
-            % Keep the timer's UserData.status in sync so checkCancelTimerFcn
-            % always completes the correct status when cancel is pressed.
-            if ~isempty(obj.CancelTimer) && isvalid(obj.CancelTimer)
-                data = obj.CancelTimer.UserData;
-                data.status = status;
-                obj.CancelTimer.UserData = data;
-            end
 
             if ~ismissing(status.Title) && status.Title ~= ""
                 obj.ProgressDlg.Title = status.Title;
@@ -286,6 +278,14 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
             end
         end
 
+        function checkIfCancelPressed(obj)
+            if obj.hasValidProgressDlg() && obj.ProgressDlg.CancelRequested
+                stopTimer(obj.CancelTimer);
+                status = obj.ProgressDlgStatus;
+                status.complete();
+                obj.Stack.removeStatus(status);
+            end
+        end
     end % methods
 
     methods (Static)
@@ -301,22 +301,14 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
 
 end % classdef
 
-function checkCancelTimerFcn(t, ~)
+function checkCancelTimerFcn(weakRef)
 % File-local function used as the CancelTimer callback.
-% Reads state from t.UserData so it captures no reference to the Popup obj,
-% breaking the obj → timer → obj cycle that would prevent garbage collection.
-    data = t.UserData;
-    if isempty(data.dlg) || ~isvalid(data.dlg)
-        stop(t); % Dialog gone — stop polling; deleteProgressDlg will delete the timer
-        return;
-    end
-    if data.dlg.CancelRequested
-        stop(t);
-        data.status.complete();
-        data.stack.removeStatus(data.status);
-        % removeStatus fires StatusUpdated → standardDisplay → checkProgressDlg
-        % → deleteProgressDlg → stopTimer, which deletes this timer after
-        % the callback returns.
+% Resolves the WeakReference each time it fires: if obj has been collected
+% the Value is empty and the callback is a no-op, otherwise delegates to the
+% method that has full access to current object state.
+    obj = weakRef.Value;
+    if ~isempty(obj)
+        obj.checkIfCancelPressed();
     end
 end
 
