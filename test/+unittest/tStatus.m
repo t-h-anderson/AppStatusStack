@@ -18,6 +18,25 @@ classdef tStatus < matlab.unittest.TestCase
             testCase.verifyEmpty(S.Data);
             testCase.verifyFalse(S.IsTemporary);
             testCase.verifyFalse(S.IsComplete);
+            testCase.verifyClass(S.Timestamp, "datetime");
+            testCase.verifyFalse(isnat(S.Timestamp));
+            testCase.verifyThat(S.User, Matches("^.+$"));
+        end
+
+        function tUserAndTimestampSetAtCreation(testCase)
+            % User and Timestamp are captured automatically at construction.
+            before = datetime("now");
+            S = statusMgr.Status();
+            after = datetime("now");
+
+            testCase.verifyGreaterThanOrEqual(S.Timestamp, before);
+            testCase.verifyLessThanOrEqual(S.Timestamp, after);
+
+            expectedUser = string(getenv("USER"));
+            if expectedUser == ""
+                expectedUser = string(getenv("USERNAME"));
+            end
+            testCase.verifyEqual(S.User, expectedUser);
         end
 
         function tStatusWithTitle(testCase)
