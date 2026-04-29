@@ -21,6 +21,7 @@ classdef tFileLog < matlab.uitest.TestCase
 
         function tDefaultValues(testCase)
             testCase.verifyTrue(testCase.FileLogView.IncludeTimestamp)
+            testCase.verifyTrue(testCase.FileLogView.IncludeUser)
             testCase.verifyTrue(testCase.FileLogView.IncludeIdentifier)
             testCase.verifyTrue(testCase.FileLogView.IncludeValue)
             testCase.verifyTrue(testCase.FileLogView.ShowInfo)
@@ -55,6 +56,7 @@ classdef tFileLog < matlab.uitest.TestCase
         function tDoNotIncludeIdentifierOrTimestamp(testCase)
             import matlab.unittest.constraints.IsFile
             testCase.FileLogView.IncludeTimestamp = false;
+            testCase.FileLogView.IncludeUser = false;
             testCase.FileLogView.IncludeIdentifier = false;
             testCase.FileLogView.IncludeValue = false;
 
@@ -68,6 +70,38 @@ classdef tFileLog < matlab.uitest.TestCase
             testCase.verifyEqual(lines(1), "[Error] s1")
             testCase.verifyEqual(lines(2), "[Running] s2")
             testCase.verifyEqual(lines(3), "")
+        end
+
+        function tIncludeUser(testCase)
+            % User appears in the log line when IncludeUser is true (default).
+            import matlab.unittest.constraints.IsFile
+            testCase.FileLogView.IncludeTimestamp = false;
+
+            testCase.Stack.addStatus("Info", Message="msg");
+
+            logfile = fullfile(testCase.FileLogView.LogFolder, testCase.FileLogView.LogFilename);
+            testCase.assertThat(logfile, IsFile)
+            lines = readlines(logfile);
+
+            expectedUser = string(getenv("USER"));
+            if expectedUser == ""
+                expectedUser = string(getenv("USERNAME"));
+            end
+            testCase.verifyTrue(startsWith(lines(1), "[" + expectedUser + "] "))
+        end
+
+        function tExcludeUser(testCase)
+            % Setting IncludeUser=false omits the user field.
+            import matlab.unittest.constraints.IsFile
+            testCase.FileLogView.IncludeTimestamp = false;
+            testCase.FileLogView.IncludeUser = false;
+
+            testCase.Stack.addStatus("Info", Message="msg");
+
+            logfile = fullfile(testCase.FileLogView.LogFolder, testCase.FileLogView.LogFilename);
+            lines = readlines(logfile);
+
+            testCase.verifyEqual(lines(1), "[Info] msg")
         end
 
         function tAddError(testCase)

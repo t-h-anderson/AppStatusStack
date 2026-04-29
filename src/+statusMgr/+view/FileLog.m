@@ -8,6 +8,7 @@ classdef FileLog < statusMgr.internal.view.StatusViewInterface
 
     properties
         IncludeTimestamp (1,1) logical = true
+        IncludeUser (1,1) logical = true
         IncludeIdentifier (1,1) logical = true
         IncludeValue (1,1) logical = true
         LogFolder (1,1) string
@@ -20,6 +21,7 @@ classdef FileLog < statusMgr.internal.view.StatusViewInterface
             arguments
                 stack = statusMgr.Stack
                 nvp.IncludeTimestamp (1,1) logical
+                nvp.IncludeUser (1,1) logical
                 nvp.IncludeIdentifier (1,1) logical
                 nvp.IncludeValue (1,1) logical
                 nvp.LogFolder (1,1) string {mustBeFolder} = pwd
@@ -112,6 +114,10 @@ classdef FileLog < statusMgr.internal.view.StatusViewInterface
             if obj.IncludeTimestamp
                 ts = string(datetime(status.Timestamp, Format="dd-MMM-yyyy HH:mm:ss"));
                 line = line + "[" + ts + "] ";
+            end
+
+            if obj.IncludeUser
+                line = line + "[" + status.User + "] ";
             end
 
             line = line + "[" + string(status.Type) + "] ";
