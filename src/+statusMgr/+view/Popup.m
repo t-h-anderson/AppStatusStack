@@ -214,10 +214,16 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
 
                 % This doesn't work - Known bug https://komodo.mathworks.com/main/gecko/view?Record=2984852
                 % obj.CancelListener = addlistener(obj.ProgressDlg, "CancelRequested", "PostSet", @(src, event) obj.notifyStackOfCancel());
+
+                % Wrap obj in a WeakReference so the closure does not hold a strong
+                % reference to it. Without this, obj → timer → closure → obj prevents
+                % MATLAB from garbage-collecting the view when the caller clears it.
                 s = warning();
                 warning("off");
                 stopTimer(obj.CancelTimer);
-                obj.CancelTimer = timer("TimerFcn", @(~,~)obj.checkIfCancelPressed(), "Period", 1, "TasksToExecute", inf, "ExecutionMode", "fixedSpacing");
+                weakObj = matlab.lang.WeakReference(obj);
+                obj.CancelTimer = timer("TimerFcn", @(~,~)checkCancelTimerFcn(weakObj), ...
+                    "Period", 1, "TasksToExecute", inf, "ExecutionMode", "fixedSpacing");
                 obj.CancelTimer.start();
                 warning(s)
 
@@ -273,9 +279,7 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
         end
 
         function checkIfCancelPressed(obj)
-
-            if obj.hasValidProgressDlg() ...
-                    && obj.ProgressDlg.CancelRequested
+            if obj.hasValidProgressDlg() && obj.ProgressDlg.CancelRequested
                 stopTimer(obj.CancelTimer);
                 status = obj.ProgressDlgStatus;
                 status.complete();
@@ -296,6 +300,17 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
     end
 
 end % classdef
+
+function checkCancelTimerFcn(weakRef)
+% File-local function used as the CancelTimer callback.
+% Resolves the WeakReference each time it fires: if obj has been collected
+% the Value is empty and the callback is a no-op, otherwise delegates to the
+% method that has full access to current object state.
+    obj = weakRef.Value;
+    if ~isempty(obj)
+        obj.checkIfCancelPressed();
+    end
+end
 
 function stopTimer(timer)
 

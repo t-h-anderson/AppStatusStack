@@ -59,8 +59,10 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
             warning("off");
             stopTimer(obj.RunningTimer);
 
-            warning("off", "MATLAB:timer:deleterunning");
-            obj.RunningTimer = timer("TimerFcn", @(~,~)obj.writeToTerminal(message), ...
+            % Use a plain fprintf callback to avoid capturing obj in the closure.
+            % Capturing obj would create a strong reference cycle (obj → timer → obj)
+            % that prevents MATLAB from garbage-collecting the view when cleared.
+            obj.RunningTimer = timer("TimerFcn", @(~,~)fprintf("."), ...
                 "Period", 1, "TasksToExecute", inf, "ExecutionMode", "fixedRate");
             
             start(obj.RunningTimer);
