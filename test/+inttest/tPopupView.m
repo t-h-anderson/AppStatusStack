@@ -313,7 +313,7 @@ classdef tPopupView < matlab.uitest.TestCase
 
         function tAddStatusBeforeCreatingView(testCase)
             % If you create the view after a status has been added, that
-            % status is still visible. 
+            % status is still visible.
             testCase.Stack.addStatus("Warning", Message="warning");
             newFigure = figure();
             testCase.addTeardown(@delete, newFigure);
@@ -324,6 +324,36 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyEqual(newPopupView.PreviousStatus.Message, "warning")
         end
 
+        function tProgressDialogCustomTitle(testCase)
+            % A Running status with a Title sets the progress dialog title.
+            status = testCase.Stack.addStatus("Running", Message="working", Title="My App");
+            pause(0.5)
+
+            testCase.verifyEqual(testCase.PopupView.ProgressDlg.Title, "My App")
+
+            status.complete();
+        end
+
+        function tProgressDialogDefaultTitle(testCase)
+            % A Running status with no Title falls back to "Running".
+            status = testCase.Stack.addStatus("Running", Message="working");
+            pause(0.5)
+
+            testCase.verifyEqual(testCase.PopupView.ProgressDlg.Title, "Running")
+
+            status.complete();
+        end
+
+        function tProgressDialogMissingTitle(testCase)
+            % A Running status with a missing Title falls back to "Running".
+            % Exercises the ismissing short-circuit guard in updateProgressDlg.
+            status = testCase.Stack.addStatus("Running", Message="working", Title=string(missing));
+            pause(0.5)
+
+            testCase.verifyEqual(testCase.PopupView.ProgressDlg.Title, "Running")
+
+            status.complete();
+        end
 
     end
 end

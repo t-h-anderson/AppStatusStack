@@ -48,6 +48,22 @@ classdef tStack < matlab.unittest.TestCase
             testCase.verifyEqual(S.CurrentStatus.Data, {1,2})
         end
 
+        function tAddStatusWithTitle(testCase)
+            % Title is threaded through addStatus to the Status object.
+            S = statusMgr.Stack();
+            S.addStatus("Running", Title="Phase 1");
+
+            testCase.verifyEqual(S.CurrentStatus.Title, "Phase 1")
+        end
+
+        function tAddStatusDefaultTitle(testCase)
+            % Default Title is an empty string.
+            S = statusMgr.Stack();
+            S.addStatus("Running");
+
+            testCase.verifyEqual(S.CurrentStatus.Title, "")
+        end
+
         function tAddStatusWithCleanup(testCase)
             % Request the second output (cleanup object) when adding a
             % status.
