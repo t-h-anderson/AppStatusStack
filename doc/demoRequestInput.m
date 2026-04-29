@@ -32,6 +32,7 @@ name = stack.requestInput("Enter your name", DefaultValue="World");
 fprintf("Popup result: Hello, %s!\n", name);
 
 delete(f)
+delete(popupView)
 
 %% 4. HandleInputRequests = false — view ignores the request
 %[text] Setting `HandleInputRequests = false` on a view means it will not claim
@@ -41,4 +42,6 @@ cmdView2.HandleInputRequests = false;
 
 name = stack.requestInput("Enter your name", DefaultValue="World");
 fprintf("Ignored result: Hello, %s!\n", name);
+
+delete(cmdView2)
 
