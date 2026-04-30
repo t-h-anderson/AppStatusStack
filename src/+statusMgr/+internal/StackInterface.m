@@ -45,6 +45,9 @@ classdef (Abstract) StackInterface < handle
         % User input
         value = requestInput(obj, prompt, nvp)
 
+        % User input
+        value = requestInput(obj, prompt, nvp)
+
         % Util
         tbl = table(obj)
     end
