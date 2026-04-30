@@ -15,40 +15,40 @@ classdef tStatusManager < matlab.unittest.TestCase
 
         % --- make -----------------------------------------------------------
 
-        function tMakeReturnsStatusManagerGroup(testCase)
-            smg = statusMgr.util.StatusManager.make();
-            testCase.assertClass(smg, 'statusMgr.util.StatusManagerGroup')
-            testCase.assertClass(smg.Stack, 'statusMgr.Stack')
+        function tMakeReturnsStack(testCase)
+            % make() returns the Stack for the group, not the group itself.
+            stack = statusMgr.util.StatusManager.make();
+            testCase.assertClass(stack, 'statusMgr.Stack')
         end
 
         function tMakeNoArgEquivalentToDefault(testCase)
-            % make() and make("Default") return the same group.
-            smg1 = statusMgr.util.StatusManager.make();
-            smg2 = statusMgr.util.StatusManager.make("Default");
-            testCase.verifyEqual(smg1, smg2)
+            % make() and make("Default") return the same Stack.
+            s1 = statusMgr.util.StatusManager.make();
+            s2 = statusMgr.util.StatusManager.make("Default");
+            testCase.verifyEqual(s1, s2)
         end
 
         function tMakeIsIdempotent(testCase)
-            % Calling make() twice returns the same object unchanged.
-            smg1 = statusMgr.util.StatusManager.make();
-            smg2 = statusMgr.util.StatusManager.make();
-            testCase.verifyEqual(smg1, smg2)
+            % Calling make() twice returns the same Stack unchanged.
+            s1 = statusMgr.util.StatusManager.make();
+            s2 = statusMgr.util.StatusManager.make();
+            testCase.verifyEqual(s1, s2)
         end
 
         function tMakeNamedGroup(testCase)
-            smg = statusMgr.util.StatusManager.make("MyGroup");
-            testCase.assertClass(smg, 'statusMgr.util.StatusManagerGroup')
+            stack = statusMgr.util.StatusManager.make("MyGroup");
+            testCase.assertClass(stack, 'statusMgr.Stack')
         end
 
         function tMakeDistinctNamedGroupsHaveSeparateStacks(testCase)
-            smg1 = statusMgr.util.StatusManager.make("Group1");
-            smg2 = statusMgr.util.StatusManager.make("Group2");
-            testCase.verifyNotEqual(smg1, smg2)
-            testCase.verifyNotEqual(smg1.Stack, smg2.Stack)
+            s1 = statusMgr.util.StatusManager.make("Group1");
+            s2 = statusMgr.util.StatusManager.make("Group2");
+            testCase.verifyNotEqual(s1, s2)
         end
 
         function tMakeWithCommandWindow(testCase)
-            smg = statusMgr.util.StatusManager.make(EnableCommandWindow=true);
+            statusMgr.util.StatusManager.make(EnableCommandWindow=true);
+            smg = statusMgr.util.StatusManager.get(Type="StatusManagerGroup");
             testCase.addTeardown(@() delete(smg.Views))
 
             testCase.assertSize(smg.Views, [1 1])
@@ -59,7 +59,8 @@ classdef tStatusManager < matlab.unittest.TestCase
             import matlab.unittest.fixtures.WorkingFolderFixture
             fx = testCase.applyFixture(WorkingFolderFixture);
 
-            smg = statusMgr.util.StatusManager.make(LogFolder=fx.Folder);
+            statusMgr.util.StatusManager.make(LogFolder=fx.Folder);
+            smg = statusMgr.util.StatusManager.get(Type="StatusManagerGroup");
 
             testCase.assertSize(smg.Views, [1 1])
             testCase.assertClass(smg.Views(1), 'statusMgr.view.FileLog')
@@ -67,18 +68,20 @@ classdef tStatusManager < matlab.unittest.TestCase
 
         function tMakeWithMissingLogFolderCreatesNoFileLog(testCase)
             % Default LogFolder=string(nan) suppresses FileLog creation.
-            smg = statusMgr.util.StatusManager.make();
+            statusMgr.util.StatusManager.make();
+            smg = statusMgr.util.StatusManager.get(Type="StatusManagerGroup");
             testCase.assertSize(smg.Views, [1 0])
         end
 
         function tMakeOnExistingGroupReturnsItUnchanged(testCase)
             % Second make() call with different args returns the original
-            % group without modifying it.
-            smg1 = statusMgr.util.StatusManager.make("MyGroup");
-            smg2 = statusMgr.util.StatusManager.make("MyGroup", EnableCommandWindow=true);
+            % Stack; the group's Views are not modified.
+            s1 = statusMgr.util.StatusManager.make("MyGroup");
+            s2 = statusMgr.util.StatusManager.make("MyGroup", EnableCommandWindow=true);
 
-            testCase.verifyEqual(smg1, smg2)
-            testCase.assertSize(smg1.Views, [1 0])
+            testCase.verifyEqual(s1, s2)
+            smg = statusMgr.util.StatusManager.get("MyGroup", Type="StatusManagerGroup");
+            testCase.assertSize(smg.Views, [1 0])
         end
 
         % --- get ------------------------------------------------------------
@@ -102,21 +105,21 @@ classdef tStatusManager < matlab.unittest.TestCase
         end
 
         function tGetTypeStatusManagerGroup(testCase)
-            smg = statusMgr.util.StatusManager.make("MyGroup");
+            statusMgr.util.StatusManager.make("MyGroup");
             result = statusMgr.util.StatusManager.get("MyGroup", Type="StatusManagerGroup");
-            testCase.verifyEqual(result, smg)
+            testCase.assertClass(result, 'statusMgr.util.StatusManagerGroup')
         end
 
         function tGetTypeViews(testCase)
-            smg = statusMgr.util.StatusManager.make("MyGroup");
+            statusMgr.util.StatusManager.make("MyGroup");
             result = statusMgr.util.StatusManager.get("MyGroup", Type="Views");
-            testCase.verifyEqual(result, smg.Views)
+            testCase.assertSize(result, [1 0])
         end
 
         function tGetStackMatchesMakeStack(testCase)
-            smg = statusMgr.util.StatusManager.make("MyGroup");
-            stack = statusMgr.util.StatusManager.get("MyGroup");
-            testCase.verifyEqual(stack, smg.Stack)
+            makeStack = statusMgr.util.StatusManager.make("MyGroup");
+            getStack  = statusMgr.util.StatusManager.get("MyGroup");
+            testCase.verifyEqual(makeStack, getStack)
         end
 
         function tGetUnknownGroupErrors(testCase)
@@ -160,14 +163,12 @@ classdef tStatusManager < matlab.unittest.TestCase
                 'statusMgr:StatusManager:unknownGroup')
         end
 
-        function tClearThenMakeCreatesNewGroup(testCase)
-            % After clearing, make() produces a fresh group with a new Stack.
-            smg1 = statusMgr.util.StatusManager.make("MyGroup");
+        function tClearThenMakeCreatesNewStack(testCase)
+            % After clearing a group, make() produces a fresh Stack.
+            s1 = statusMgr.util.StatusManager.make("MyGroup");
             statusMgr.util.StatusManager.clear("MyGroup");
-            smg2 = statusMgr.util.StatusManager.make("MyGroup");
-
-            testCase.verifyNotEqual(smg1, smg2)
-            testCase.verifyNotEqual(smg1.Stack, smg2.Stack)
+            s2 = statusMgr.util.StatusManager.make("MyGroup");
+            testCase.verifyNotEqual(s1, s2)
         end
 
         % --- addCommandWindow / addFileLog / addView / removeView -----------
@@ -205,7 +206,7 @@ classdef tStatusManager < matlab.unittest.TestCase
 
         function tAddExistingView(testCase)
             % addView reconnects an existing view to the group's Stack.
-            smg = statusMgr.util.StatusManager.make("MyGroup");
+            stack = statusMgr.util.StatusManager.make("MyGroup");
             view = statusMgr.view.CommandWindow(statusMgr.Stack());
             testCase.addTeardown(@() delete(view))
 
@@ -213,7 +214,7 @@ classdef tStatusManager < matlab.unittest.TestCase
 
             views = statusMgr.util.StatusManager.get("MyGroup", Type="Views");
             testCase.assertSize(views, [1 1])
-            testCase.verifyEqual(view.Stack, smg.Stack)
+            testCase.verifyEqual(view.Stack, stack)
         end
 
         function tRemoveView(testCase)
@@ -230,17 +231,18 @@ classdef tStatusManager < matlab.unittest.TestCase
 
         function tGetReturnsSameStackAcrossCalls(testCase)
             % The singleton returns the same Stack object on every call.
-            stack1 = statusMgr.util.StatusManager.get();
-            stack2 = statusMgr.util.StatusManager.get();
-            testCase.verifyEqual(stack1, stack2)
+            s1 = statusMgr.util.StatusManager.get();
+            s2 = statusMgr.util.StatusManager.get();
+            testCase.verifyEqual(s1, s2)
         end
 
         function tViewsShareGroupStack(testCase)
             % Views created via make() are connected to the group's Stack.
-            smg = statusMgr.util.StatusManager.make(EnableCommandWindow=true);
+            stack = statusMgr.util.StatusManager.make(EnableCommandWindow=true);
+            smg = statusMgr.util.StatusManager.get(Type="StatusManagerGroup");
             testCase.addTeardown(@() delete(smg.Views))
 
-            testCase.verifyEqual(smg.Views(1).Stack, smg.Stack)
+            testCase.verifyEqual(smg.Views(1).Stack, stack)
         end
 
         function tStatusAddedToStackVisibleViaGet(testCase)
