@@ -25,7 +25,7 @@ classdef (Abstract) StackInterface < handle
 
         [newStatus, cleanupObj] = add(obj, status, nvp)
 
-        [newStatus, cleanupObj] = addError(obj, error)
+        [newStatus, cleanupObj] = addError(obj, err)
 
         % Updating
         updateStatus(obj, status, nvp)
@@ -38,9 +38,9 @@ classdef (Abstract) StackInterface < handle
         removeAllStatuses(obj)
 
         % Monitoring
-        monitor(obj, montorable)
+        monitor(obj, monitorable)
 
-        run(obj, fcnHandle)
+        run(obj, fcnHandle, varargin)
 
         % User input
         value = requestInput(obj, prompt, nvp)

@@ -280,7 +280,7 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyEqual(newStack.CurrentStatus.Value, 0.5)
         end
 
-        function tNonVisibileStatus(testCase)
+        function tNonVisibleStatus(testCase)
             % Setting the status as non-visible makes it not appear as a popup
             testCase.Stack.addStatus("Warning", IsVisible=false);
             
