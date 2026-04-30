@@ -312,7 +312,6 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
         function checkIfCancelPressed(obj)
             if obj.hasValidProgressDlg() && obj.ProgressDlg.CancelRequested
                 statusMgr.util.stopTimer(obj.CancelTimer);
-
                 status = obj.ProgressDlgStatus;
                 status.complete();
                 obj.Stack.removeStatus(status);
