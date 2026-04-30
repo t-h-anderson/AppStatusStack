@@ -24,10 +24,28 @@ classdef StatusManager < handle
     %   statusMgr.util.StatusManager.addView("MyGroup", existingView)
     %   statusMgr.util.StatusManager.removeView("MyGroup", idx)
 
+    properties (Access = private)
+        Groups
+    end
+
     methods (Access = private)
+
         function obj = StatusManager()
-            % Private constructor — this class cannot be instantiated.
+            obj.Groups = configureDictionary("string", "statusMgr.util.StatusManagerGroup");
         end
+
+    end
+
+    methods (Static, Access = private)
+
+        function obj = instance()
+            persistent singleton
+            if isempty(singleton) || ~isvalid(singleton)
+                singleton = statusMgr.util.StatusManager();
+            end
+            obj = singleton;
+        end
+
     end
 
     methods (Static)
@@ -45,8 +63,10 @@ classdef StatusManager < handle
                 nvp.LogFolder               (1,1) string  = string(nan)
             end
 
-            if statusMgr.util.StatusManager.dictOp('isKey', name)
-                smg = statusMgr.util.StatusManager.dictOp('get', name);
+            obj = statusMgr.util.StatusManager.instance();
+
+            if isKey(obj.Groups, name)
+                smg = obj.Groups(name);
                 return
             end
 
@@ -62,7 +82,7 @@ classdef StatusManager < handle
                 smg.addView(statusMgr.view.FileLog(smg.Stack, LogFolder=nvp.LogFolder));
             end
 
-            statusMgr.util.StatusManager.dictOp('set', name, smg);
+            obj.Groups(name) = smg;
         end
 
         function result = get(name, nvp)
@@ -78,14 +98,16 @@ classdef StatusManager < handle
                     = "Stack"
             end
 
-            if name == "Default" && ~statusMgr.util.StatusManager.dictOp('isKey', name)
+            obj = statusMgr.util.StatusManager.instance();
+
+            if name == "Default" && ~isKey(obj.Groups, name)
                 statusMgr.util.StatusManager.make("Default");
-            elseif ~statusMgr.util.StatusManager.dictOp('isKey', name)
+            elseif ~isKey(obj.Groups, name)
                 error("statusMgr:StatusManager:unknownGroup", ...
                     "No group named '%s'. Call StatusManager.make() first.", name);
             end
 
-            smg = statusMgr.util.StatusManager.dictOp('get', name);
+            smg = obj.Groups(name);
 
             switch nvp.Type
                 case "Stack"
@@ -102,10 +124,11 @@ classdef StatusManager < handle
             arguments
                 name (1,1) string = string(nan)
             end
+            obj = statusMgr.util.StatusManager.instance();
             if ismissing(name)
-                statusMgr.util.StatusManager.dictOp('clearAll');
-            elseif statusMgr.util.StatusManager.dictOp('isKey', name)
-                statusMgr.util.StatusManager.dictOp('remove', name);
+                obj.Groups = configureDictionary("string", "statusMgr.util.StatusManagerGroup");
+            elseif isKey(obj.Groups, name)
+                obj.Groups = remove(obj.Groups, name);
             else
                 error("statusMgr:StatusManager:unknownGroup", ...
                     "No group named '%s'.", name);
@@ -161,41 +184,6 @@ classdef StatusManager < handle
             end
             smg = statusMgr.util.StatusManager.get(name, Type="StatusManagerGroup");
             smg.removeView(idx);
-        end
-
-    end
-
-    methods (Static, Access = private)
-
-        function varargout = dictOp(op, varargin)
-            %DICTOP Dispatcher owning the persistent dictionary.
-            %
-            % dictionary is a value type, so returning it from a method
-            % would yield a copy — modifications would not propagate back.
-            % Centralising all reads and writes here keeps every operation
-            % on the single persistent instance.
-            persistent d
-            if isempty(d)
-                d = dictionary( ...
-                    string.empty(1,0), ...
-                    statusMgr.util.StatusManagerGroup.empty(1,0));
-            end
-            switch op
-                case 'isKey'
-                    varargout{1} = isKey(d, varargin{1});
-                case 'get'
-                    varargout{1} = d(varargin{1});
-                case 'set'
-                    d(varargin{1}) = varargin{2};
-                case 'remove'
-                    d = remove(d, varargin{1});
-                case 'keys'
-                    varargout{1} = keys(d);
-                case 'clearAll'
-                    d = dictionary( ...
-                        string.empty(1,0), ...
-                        statusMgr.util.StatusManagerGroup.empty(1,0));
-            end
         end
 
     end
