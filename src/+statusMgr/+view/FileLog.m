@@ -36,12 +36,6 @@ classdef FileLog < statusMgr.internal.view.StatusViewInterface
 
             % Set view parent and stack properties
             obj.setStack(stack);
-
-            % Add listener to stack
-            standardDisplayFn = @(src, event)obj.standardDisplay();
-            obj.StackListener = listener(obj.Stack, ...
-                "StatusUpdated", standardDisplayFn);
-
             set(obj, nvp);
 
             logfile = fullfile(obj.LogFolder, obj.LogFilename);
@@ -129,13 +123,13 @@ classdef FileLog < statusMgr.internal.view.StatusViewInterface
             line = line + "[" + string(status.Type) + "] ";
 
             if obj.IncludeIdentifier
-                if ~isempty(status.Identifier) && status.Identifier ~= ""
+                if status.Identifier ~= ""
                     line = line + "[" + status.Identifier + "] ";
                 end
             end
 
             if obj.IncludeValue
-                if ~isempty(status.Value) && ~isnan(status.Value)
+                if ~isnan(status.Value)
                     line = line + "[Value=" + status.Value + "] ";
                 end
             end

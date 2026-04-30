@@ -1,4 +1,4 @@
-classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
+classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet & matlab.mixin.Heterogeneous
     %StatusVIEWINTERFACE View a status Stack
 
     properties (Abstract, SetAccess = protected)
@@ -71,7 +71,7 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
                 case {statusMgr.StatusType.AwaitingInput, statusMgr.StatusType.ValueSupplied}
                     % Intermediate input states — no display action needed.
                 otherwise
-                    error("Unknow status type");
+                    error("Unknown status type");
             end % switch
 
             
@@ -162,6 +162,17 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
         % (AwaitingInput), collect input, then call transitionInputState
         % (ValueSupplied, value). Do nothing (no claim) to let it time out.
         handleInputRequest(obj, status)
+
+    end
+
+    methods (Static, Sealed, Access = protected)
+
+        function obj = getDefaultScalarElement()
+            % Required by matlab.mixin.Heterogeneous. We never need
+            % auto-generated default elements, so error if called.
+            error("statusMgr:view:noDefault", ...
+                "StatusViewInterface has no default scalar element.");
+        end
 
     end
 
