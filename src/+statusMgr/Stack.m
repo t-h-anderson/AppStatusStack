@@ -27,6 +27,10 @@ classdef Stack < statusMgr.internal.StackInterface
         function obj = Stack()
             obj.ID = matlab.lang.internal.uuid();
         end
+
+        function delete(obj)
+            delete(obj.StatusListeners);
+        end
     end
 
     methods % get/set
@@ -264,12 +268,6 @@ classdef Stack < statusMgr.internal.StackInterface
             for ii = 1:numel(objs)
                 obj = objs(ii);
 
-                % Check validity
-                toRemove(~isvalid(toRemove)) = [];
-                if isempty(obj.Statuses) || isempty(toRemove)
-                    return
-                end
-
                 % Check if last status
                 if isscalar(toRemove) ...
                         && obj.CurrentStatus.ID == toRemove.ID
@@ -480,6 +478,8 @@ classdef Stack < statusMgr.internal.StackInterface
         end
 
         function onStatusCompleted(obj, s, e)
+            idx = isvalid(obj);
+            obj = obj(idx);
             obj.removeStatus(s);
         end
 
