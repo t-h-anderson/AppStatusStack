@@ -6,8 +6,12 @@ classdef tStatusManager < matlab.unittest.TestCase
     % singleton's dictionary before the next test runs.
 
     methods (TestMethodSetup)
-        function resetSingleton(testCase)
-            testCase.addTeardown(@() statusMgr.util.StatusManager.clear())
+        function saveState(testCase)
+            % Capture the singleton and its Groups dictionary before the
+            % test runs, then restore both afterwards. This leaves any
+            % pre-existing singleton completely intact.
+            token = statusMgr.util.StatusManager.snapshot();
+            testCase.addTeardown(@() statusMgr.util.StatusManager.restore(token))
         end
     end
 

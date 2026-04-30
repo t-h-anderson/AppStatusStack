@@ -36,16 +36,72 @@ classdef StatusManager < handle
 
     methods (Static, Access = private)
 
-        function obj = instance(reset)
-            arguments
-                reset (1,1) logical = false
-            end
+        function obj = instance(action)
+            %INSTANCE Manage the persistent singleton.
+            %   instance()        – get or create
+            %   instance("peek")  – return current without creating (may be empty)
+            %   instance(true)    – reset to a fresh instance
+            %   instance(sm)      – restore to a specific StatusManager object
+            %   instance([])      – clear the persistent (set to empty)
             persistent singleton
-            
-            if reset || isempty(singleton) || ~isvalid(singleton)
-                singleton = statusMgr.util.StatusManager();
+
+            if nargin == 0
+                if isempty(singleton) || ~isvalid(singleton)
+                    singleton = statusMgr.util.StatusManager();
+                end
+                obj = singleton;
+                return
             end
+
+            if isstring(action) && action == "peek"
+                obj = singleton;  % may be empty; does not auto-create
+                return
+            end
+
+            if islogical(action) && action
+                singleton = statusMgr.util.StatusManager();
+            elseif isa(action, 'statusMgr.util.StatusManager')
+                singleton = action;
+            elseif isempty(action)
+                singleton = [];
+            end
+
             obj = singleton;
+        end
+
+    end
+
+    methods (Static, Hidden)
+
+        function token = snapshot()
+            %SNAPSHOT Capture the current singleton state for later restoration.
+            %
+            % Saves both the singleton handle and a copy of the Groups
+            % dictionary (value type) so that group additions or removals
+            % made during a test are fully undone by restore().
+            %
+            % Typical test setup:
+            %   token = statusMgr.util.StatusManager.snapshot();
+            %   testCase.addTeardown( ...
+            %       @() statusMgr.util.StatusManager.restore(token));
+            sm = statusMgr.util.StatusManager.instance("peek");
+            if isempty(sm) || ~isvalid(sm)
+                token = struct('hasInstance', false, 'instance', [], 'groups', []);
+            else
+                token = struct('hasInstance', true, 'instance', sm, 'groups', sm.Groups);
+            end
+        end
+
+        function restore(token)
+            %RESTORE Restore the singleton to a previously snapshotted state.
+            if ~token.hasInstance
+                statusMgr.util.StatusManager.instance([]);
+            elseif isvalid(token.instance)
+                statusMgr.util.StatusManager.instance(token.instance);
+                token.instance.Groups = token.groups;
+            else
+                statusMgr.util.StatusManager.instance([]);
+            end
         end
 
     end
