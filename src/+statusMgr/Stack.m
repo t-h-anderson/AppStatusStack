@@ -223,17 +223,13 @@ classdef Stack < statusMgr.internal.StackInterface
 
             if currentStatus.ID == status.ID
                 % Quickest to just update the current status
-                if isfield(nvp, "Message") && isfield(nvp, "Value")
+                if isfield(nvp, "Message")
                     obj.CurrentStatus.updateMessage(nvp.Message);
+                end
+                if isfield(nvp, "Value")
                     obj.CurrentStatus.updateValue(nvp.Value);
-
-                    % Only update if we are at the top of the stack
-                    notify(obj, "StatusUpdated");
-                elseif isfield(nvp, "Message")
-                    obj.CurrentStatus.updateMessage(nvp.Message);
-                    notify(obj, "StatusUpdated");
-                elseif isfield(nvp, "Value")
-                    obj.CurrentStatus.updateValue(nvp.Value);
+                end
+                if isfield(nvp, "Message") || isfield(nvp, "Value")
                     notify(obj, "StatusUpdated");
                 end
             else
@@ -372,6 +368,62 @@ classdef Stack < statusMgr.internal.StackInterface
                 obj.addStatus("Warning", "Message", w1);
             end
 
+        end
+
+    end
+
+    methods % User input
+
+        function value = requestInput(obj, prompt, nvp)
+            % Block until a view supplies user input, or return DefaultValue
+            % after Timeout seconds if no view claims the request.
+            %
+            % value = requestInput(prompt)
+            % value = requestInput(prompt, DefaultValue="fallback", Timeout=5, Title="...")
+            arguments
+                obj (1,1) statusMgr.Stack
+                prompt (1,1) string = ""
+                nvp.DefaultValue (1,1) string = ""
+                nvp.Title (1,1) string = "Input Required"
+                nvp.Timeout (1,1) double {mustBePositive} = 0.5
+            end
+
+            % Push RequestingInput. Listeners fire synchronously here, so
+            % a view may have already claimed (or even completed) the
+            % request by the time addStatus returns.
+            status = obj.addStatus(statusMgr.StatusType.RequestingInput, ...
+                Message=prompt, ...
+                Title=nvp.Title, ...
+                Data=nvp.DefaultValue);
+            cleanupStatus = onCleanup(@() obj.removeStatus(status)); %#ok<NASGU>
+
+            % Poll until a view claims the request or the timeout expires.
+            t = tic;
+            while status.Type == statusMgr.StatusType.RequestingInput ...
+                    && toc(t) < nvp.Timeout
+                drawnow;
+                pause(0.05);
+            end
+
+            % Nobody claimed it in time — return the default.
+            if status.Type == statusMgr.StatusType.RequestingInput
+                value = nvp.DefaultValue;
+                return;
+            end
+
+            % A view claimed it; wait indefinitely for ValueSupplied.
+            % Also exit if the status is forcibly removed (IsComplete=true)
+            % to avoid an infinite loop when no ValueSupplied transition occurs.
+            while status.Type == statusMgr.StatusType.AwaitingInput && ~status.IsComplete
+                drawnow;
+                pause(0.05);
+            end
+
+            if status.Type == statusMgr.StatusType.ValueSupplied
+                value = status.Message;
+            else
+                value = nvp.DefaultValue;
+            end
         end
 
     end

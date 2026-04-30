@@ -1,4 +1,4 @@
-classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
+classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet & matlab.mixin.Heterogeneous
     %StatusVIEWINTERFACE View a status Stack
 
     properties (Abstract, SetAccess = protected)
@@ -18,6 +18,7 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
         ShowRunning (1,1) logical = true
         ShowSuccess (1,1) logical = true
         ShowIdle (1,1) logical = false
+        HandleInputRequests (1,1) logical = true
     end
 
     methods
@@ -65,8 +66,12 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
                     obj.displaySuccess_(latestStatus);
                 case statusMgr.StatusType.Idle
                     obj.displayIdle_(latestStatus);
+                case statusMgr.StatusType.RequestingInput
+                    obj.handleInputRequest_(latestStatus);
+                case {statusMgr.StatusType.AwaitingInput, statusMgr.StatusType.ValueSupplied}
+                    % Intermediate input states — no display action needed.
                 otherwise
-                    error("Unknow status type");
+                    error("Unknown status type");
             end % switch
 
             
@@ -124,6 +129,12 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
             % Overload to do something before each display trigger
         end
 
+        function handleInputRequest_(obj, status)
+            if obj.HandleInputRequests
+                obj.handleInputRequest(status);
+            end
+        end
+
     end
 
     methods (Abstract)
@@ -145,6 +156,23 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
         displaySuccess(obj, status)
 
         displayIdle(obj, status)
+
+        % Called when a RequestingInput status is seen and HandleInputRequests
+        % is true. Claim the request by calling status.transitionInputState
+        % (AwaitingInput), collect input, then call transitionInputState
+        % (ValueSupplied, value). Do nothing (no claim) to let it time out.
+        handleInputRequest(obj, status)
+
+    end
+
+    methods (Static, Sealed, Access = protected)
+
+        function obj = getDefaultScalarElement()
+            % Required by matlab.mixin.Heterogeneous. We never need
+            % auto-generated default elements, so error if called.
+            error("statusMgr:view:noDefault", ...
+                "StatusViewInterface has no default scalar element.");
+        end
 
     end
 

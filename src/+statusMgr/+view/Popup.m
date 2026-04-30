@@ -111,6 +111,37 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
             % Do nothing
         end
 
+        function handleInputRequest(obj, status)
+            if ~obj.isVisible()
+                return;
+            end
+
+            status.transitionInputState(statusMgr.StatusType.AwaitingInput);
+
+            titleStr = status.Title;
+            if titleStr == "", titleStr = "Input Required"; end
+            defaultVal = string(status.Data);
+
+            d = uifigure("Name", titleStr, "Position", [0 0 340 160], ...
+                "Resize", "off", "WindowStyle", "modal");
+            movegui(d, "center");
+
+            uilabel(d, "Text", status.Message, ...
+                "Position", [15 110 310 35], "WordWrap", "on");
+            field = uieditfield(d, "text", ...
+                "Position", [15 65 310 30], "Value", defaultVal);
+            uibutton(d, "push", "Text", "OK", ...
+                "Position", [130 15 80 35], ...
+                "ButtonPushedFcn", @(~,~) onSubmit(field.Value));
+            d.CloseRequestFcn = @(~,~) onSubmit(defaultVal);
+
+            function onSubmit(value)
+                delete(d);
+                status.transitionInputState( ...
+                    statusMgr.StatusType.ValueSupplied, value);
+            end
+        end
+
     end
 
     methods (Access = protected)
@@ -198,7 +229,7 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
         function deleteProgressDlg(obj)
             delete(obj.ProgressDlg);
             delete(obj.CancelListener);
-            stopTimer(obj.CancelTimer);
+            statusMgr.util.stopTimer(obj.CancelTimer);
         end
 
         function createProgressDlg(obj)
@@ -220,7 +251,7 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
                 % MATLAB from garbage-collecting the view when the caller clears it.
                 s = warning();
                 warning("off");
-                stopTimer(obj.CancelTimer);
+                statusMgr.util.stopTimer(obj.CancelTimer);
                 weakObj = matlab.lang.WeakReference(obj);
                 obj.CancelTimer = timer("TimerFcn", @(~,~)checkCancelTimerFcn(weakObj), ...
                     "Period", 1, "TasksToExecute", inf, "ExecutionMode", "fixedSpacing");
@@ -248,7 +279,7 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
                 obj.ProgressDlg.Cancelable = cancellable;
             end
 
-            if ~(isempty(status.Value) || ismissing(status.Value))
+            if ~ismissing(status.Value)
                 obj.ProgressDlg.Value = status.Value;
 
                 if ~strcmp(obj.ProgressDlg.Indeterminate, 'off')
@@ -263,7 +294,7 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
         end
 
         function tf = hasValidProgressDlg(obj)
-            tf = ~(isempty(obj.ProgressDlg) || ~isvalid(obj.ProgressDlg));
+            tf = ~isempty(obj.ProgressDlg) && isvalid(obj.ProgressDlg);
         end
 
         function tf = isProgressDlgNeeded(obj, status)
@@ -280,7 +311,11 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
 
         function checkIfCancelPressed(obj)
             if obj.hasValidProgressDlg() && obj.ProgressDlg.CancelRequested
+<<<<<<< HEAD
                 stopTimer(obj.CancelTimer);
+=======
+                statusMgr.util.stopTimer(obj.CancelTimer);
+>>>>>>> main
                 status = obj.ProgressDlgStatus;
                 status.complete();
                 obj.Stack.removeStatus(status);
@@ -310,14 +345,4 @@ function checkCancelTimerFcn(weakRef)
     if ~isempty(obj)
         obj.checkIfCancelPressed();
     end
-end
-
-function stopTimer(timer)
-
-try
-    stop(timer);
-    delete(timer)
-catch
-end
-
 end

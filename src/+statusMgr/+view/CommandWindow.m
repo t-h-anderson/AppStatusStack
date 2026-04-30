@@ -57,7 +57,7 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
 
             s = warning();
             warning("off");
-            stopTimer(obj.RunningTimer);
+            statusMgr.util.stopTimer(obj.RunningTimer);
 
             % Use a plain fprintf callback to avoid capturing obj in the closure.
             % Capturing obj would create a strong reference cycle (obj → timer → obj)
@@ -71,7 +71,7 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
         end % displayRunning
 
         function clearRunning(obj)
-            stopTimer(obj.RunningTimer);
+            statusMgr.util.stopTimer(obj.RunningTimer);
             obj.PreviousMessage = string(NaN);
         end
 
@@ -128,6 +128,26 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
             obj.writeToTerminal(message);
         end
 
+        function handleInputRequest(obj, status)
+            arguments
+                obj (1,1) statusMgr.view.CommandWindow
+                status (1,1) statusMgr.Status
+            end
+
+            status.transitionInputState(statusMgr.StatusType.AwaitingInput);
+
+            prompt = status.Message;
+            if prompt == "", prompt = "Enter value"; end
+            defaultVal = string(status.Data);
+
+            raw = string(input(prompt + ": ", "s"));
+            if raw == ""
+                raw = defaultVal;
+            end
+
+            status.transitionInputState(statusMgr.StatusType.ValueSupplied, raw);
+        end
+
         function writeToTerminal(obj, message, id)
             arguments
                 obj (1,1)
@@ -149,13 +169,3 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
     end % methods
 
 end % classdef
-
-function stopTimer(timer)
-
-try
-    stop(timer);
-    delete(timer)
-catch
-end
-
-end

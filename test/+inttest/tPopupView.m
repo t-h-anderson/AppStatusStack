@@ -280,7 +280,7 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyEqual(newStack.CurrentStatus.Value, 0.5)
         end
 
-        function tNonVisibileStatus(testCase)
+        function tNonVisibleStatus(testCase)
             % Setting the status as non-visible makes it not appear as a popup
             testCase.Stack.addStatus("Warning", IsVisible=false);
             
@@ -353,6 +353,103 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyEqual(string(testCase.PopupView.ProgressDlg.Title), "Running")
 
             status.complete();
+        end
+
+        % --- handleInputRequest ---------------------------------------------
+
+        function tHandleInputRequestDefaultValues(testCase)
+            % HandleInputRequests is true by default.
+            testCase.verifyTrue(testCase.PopupView.HandleInputRequests)
+        end
+
+        function tHandleInputRequestDisabled(testCase)
+            % When HandleInputRequests is false the popup does not claim the
+            % request; requestInput returns the default after the timeout.
+            testCase.PopupView.HandleInputRequests = false;
+
+            value = testCase.Stack.requestInput("Prompt", ...
+                DefaultValue="default", Timeout=0.1);
+
+            testCase.verifyEqual(value, "default")
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, ...
+                statusMgr.StatusType.Idle)
+        end
+
+        function tHandleInputRequestShowsDialogAndReturnsTypedValue(testCase)
+            % requestInput creates an input dialog; submitting it returns the
+            % typed value. The timer simulates a user typing and clicking OK.
+            typedValue = "hello world";
+
+            t = timer("StartDelay", 0.3, "TimerFcn", @(~,~) typeAndSubmit());
+            testCase.addTeardown(@() delete(t));
+            start(t);
+
+            value = testCase.Stack.requestInput("Enter something", ...
+                DefaultValue="def", Title="Test Input", Timeout=5);
+
+            testCase.verifyEqual(value, typedValue)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, ...
+                statusMgr.StatusType.Idle)
+
+            function typeAndSubmit()
+                % Find the input dialog uifigure and submit it.
+                figs = findall(0, "Type", "figure", "Name", "Test Input");
+                if isempty(figs)
+                    return
+                end
+                f = figs(1);
+                fields = findall(f, "Type", "uieditfield");
+                if ~isempty(fields)
+                    fields(1).Value = typedValue;
+                end
+                btns = findall(f, "Type", "uibutton", "Text", "OK");
+                if ~isempty(btns)
+                    btns(1).ButtonPushedFcn(btns(1), []);
+                end
+            end
+        end
+
+        function tHandleInputRequestDefaultUsedWhenDialogClosed(testCase)
+            % Closing the dialog without clicking OK returns the default.
+            t = timer("StartDelay", 0.3, "TimerFcn", @(~,~) closeDialog());
+            testCase.addTeardown(@() delete(t));
+            start(t);
+
+            value = testCase.Stack.requestInput("Enter something", ...
+                DefaultValue="fallback", Title="Close Test", Timeout=5);
+
+            testCase.verifyEqual(value, "fallback")
+
+            function closeDialog()
+                figs = findall(0, "Type", "figure", "Name", "Close Test");
+                if ~isempty(figs)
+                    figs(1).CloseRequestFcn(figs(1), []);
+                end
+            end
+        end
+
+        function tHandleInputRequestStatusCleanedUp(testCase)
+            % Stack returns to Idle after requestInput completes.
+            t = timer("StartDelay", 0.2, "TimerFcn", @(~,~) submitDefault());
+            testCase.addTeardown(@() delete(t));
+            start(t);
+
+            testCase.Stack.requestInput("Prompt", ...
+                DefaultValue="x", Title="Cleanup Test", Timeout=5);
+
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, ...
+                statusMgr.StatusType.Idle)
+            testCase.verifySize(testCase.Stack.Statuses, [1 1])
+
+            function submitDefault()
+                figs = findall(0, "Type", "figure", "Name", "Cleanup Test");
+                if ~isempty(figs)
+                    btns = findall(figs(1), "Type", "uibutton", "Text", "OK");
+                    if ~isempty(btns)
+                        btns(1).ButtonPushedFcn(btns(1), []);
+                    end
+                end
+            end
         end
 
     end

@@ -41,7 +41,6 @@ classdef tFileLog < matlab.uitest.TestCase
             testCase.assertThat(logfile, IsFile)
             lines = readlines(logfile);
             
-            testCase.verifyFalse(endsWith(lines(1), "[Info] [] s1"))
             testCase.verifyTrue(endsWith(lines(1), "[Info] s1"))
             testCase.verifyEqual(lines(2), "")
         end
