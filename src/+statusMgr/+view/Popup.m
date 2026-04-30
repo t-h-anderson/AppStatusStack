@@ -337,7 +337,7 @@ function checkCancelTimerFcn(weakRef)
 % Resolves the WeakReference each time it fires: if obj has been collected
 % the Value is empty and the callback is a no-op, otherwise delegates to the
 % method that has full access to current object state.
-    obj = weakRef.Value;
+    obj = weakRef.Handle;
     if ~isempty(obj)
         obj.checkIfCancelPressed();
     end

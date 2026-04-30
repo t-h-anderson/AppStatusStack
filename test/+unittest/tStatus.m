@@ -56,12 +56,15 @@ classdef tStatus < matlab.unittest.TestCase
         function tCompletionFcnCalledOnComplete(testCase)
             % CompletionFcn is invoked with the status when complete() fires.
             received = [];
-            S = statusMgr.Status("Running", CompletionFcn=@(s) assignin('caller','received',s));
-
+            S = statusMgr.Status("Running", CompletionFcn=@(s) completeFunction(s));
             S.complete();
 
             testCase.verifyEqual(received, S)
             testCase.verifyTrue(S.IsComplete)
+
+            function completeFunction(s)
+                received = s;
+            end
         end
 
         function tCompleteIsIdempotent(testCase)

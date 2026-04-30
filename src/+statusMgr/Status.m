@@ -134,8 +134,11 @@ classdef Status < matlab.mixin.SetGet
 
         function delete(objs)
             % Complete valid statuses
-            idx = isvalid(objs);
+            % For some reason all objs are coming back as invalid even if
+            % they are...
+            idx = ~isDeleted(objs);
             objs = objs(idx);
+            
             notify(objs, "Completed");
         end
 
@@ -144,6 +147,17 @@ classdef Status < matlab.mixin.SetGet
                 val = obj.Message;
             else
                 val = obj.MessageShort;
+            end
+        end
+
+        function idx = isDeleted(objs)
+            idx = false(size(objs));
+            for i = 1:numel(objs)
+                try
+                    objs(i).ID;
+                catch
+                    idx(i) = true;
+                end
             end
         end
 
