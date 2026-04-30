@@ -134,12 +134,18 @@ classdef Status < matlab.mixin.SetGet
 
         function delete(objs)
             % Complete valid statuses
-            % For some reason all objs are coming back as invalid even if
-            % they are...
+            % isvalid is unreliable inside delete — MATLAB may begin
+            % invalidating handles before the user-defined delete runs.
             idx = ~isDeleted(objs);
             objs = objs(idx);
             
-            notify(objs, "Completed");
+            % IsComplete is a plain property, always readable here, and
+            % correctly identifies statuses not yet cleaned up via complete().
+            idx = ~[objs.IsComplete];
+            objs = objs(idx);
+            if ~isempty(objs)
+                notify(objs, "Completed");
+            end
         end
 
         function val = get.MessageShort(obj)
