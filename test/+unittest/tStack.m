@@ -122,7 +122,6 @@ classdef tStack < matlab.unittest.TestCase
 
             testCase.verifyFalse(status.IsComplete)
 
-            pause(1);
             status.complete();
 
             testCase.verifyTrue(status.IsComplete)
@@ -432,6 +431,31 @@ classdef tStack < matlab.unittest.TestCase
                     s.transitionInputState(statusMgr.StatusType.AwaitingInput);
                 end
             end
+        end
+
+        function tRunCommandWithArguments(testCase)
+            % run() passes varargin through to the function handle.
+            S = statusMgr.Stack();
+            result = S.run(@(a, b) a + b, 3, 4);
+
+            testCase.verifyEqual(result, 7)
+            testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Idle)
+        end
+
+        function tRemoveStatusFromMultipleStacks(testCase)
+            % removeStatus on a stack array removes the status from every stack.
+            S1 = statusMgr.Stack();
+            S2 = statusMgr.Stack();
+            StackArray = [S1, S2];
+
+            status = StackArray.addStatus("Warning", Message="m1");
+            StackArray.removeStatus(status);
+
+            testCase.verifySize(S1.Statuses, [1 1])
+            testCase.verifyEqual(S1.CurrentStatus.Type, statusMgr.StatusType.Idle)
+            testCase.verifySize(S2.Statuses, [1 1])
+            testCase.verifyEqual(S2.CurrentStatus.Type, statusMgr.StatusType.Idle)
+            testCase.verifyTrue(status.IsComplete)
         end
 
         function tRequestInputStatusPushedWithCorrectProperties(testCase)
