@@ -29,12 +29,12 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet & matlab.mixin.Het
                 obj (1,1)
             end
 
-            if ~obj.isVisible()
+            if ~obj.isVisible() || ~isvalid(obj)
                 return
             end
 
             stack = obj.Stack;
-
+            
             %Get the latest status
             latestStatus = stack.CurrentStatus;
 
@@ -74,7 +74,9 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet & matlab.mixin.Het
                     error("Unknown status type");
             end % switch
 
-            
+            function delete(obj)
+                delete(obj.StackListener);
+            end
 
         end % standardDisplay
 

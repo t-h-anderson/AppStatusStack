@@ -470,7 +470,7 @@ classdef tStack < matlab.unittest.TestCase
 
             S.requestInput("My prompt", DefaultValue="def", Title="My title", Timeout=3);
 
-            testCase.verifyEqual(capturedStatus.Message, "My prompt")
+            testCase.verifyEqual(capturedStatus.Message, "Entered Value")
             testCase.verifyEqual(capturedStatus.Title, "My title")
             testCase.verifyEqual(string(capturedStatus.Data), "def")
 
@@ -479,7 +479,7 @@ classdef tStack < matlab.unittest.TestCase
                 if s.Type == statusMgr.StatusType.RequestingInput
                     capturedStatus = s;
                     s.transitionInputState(statusMgr.StatusType.AwaitingInput);
-                    s.transitionInputState(statusMgr.StatusType.ValueSupplied, "x");
+                    s.transitionInputState(statusMgr.StatusType.ValueSupplied, "Entered Value");
                 end
             end
         end
