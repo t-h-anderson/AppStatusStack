@@ -1,95 +1,109 @@
-# Full Repository Name 
-<!-- This is the "Title of the contribution" that was approved during the Community Contribution Review Process --> 
+# Status Manager
 
-[![View <File Exchange Title> on File Exchange](https://www.mathworks.com/matlabcentral/images/matlab-file-exchange.svg)](https://www.mathworks.com/matlabcentral/fileexchange/####-file-exchange-title) [![Open in MATLAB Online](https://www.mathworks.com/images/responsive/global/open-in-matlab-online.svg)](https://matlab.mathworks.com/open/github/v1?repo=owner/title&project=title.prj&file=example.mlx) 
-<!-- Add the "File Exchange" icon to the README if this repo also appears on File Exchange via the "Connect to GitHub" feature --> 
-<!-- Add the "Open in MATLAB Online" icon to the README to open a particular file on MATLAB Online --> 
+[![Open in MATLAB Online](https://www.mathworks.com/images/responsive/global/open-in-matlab-online.svg)](https://matlab.mathworks.com/open/github/v1?repo=t-h-anderson/AppStatusStack&project=AppStatusStack.prj&file=doc/GettingStarted.m)
 
-Add a brief description about your repo that is memorable and explains what your repo does.  The brief description should be consistent with how you answered Question 5, “Description” in the Proposal Form.
+Status Manager is a lightweight MATLAB&reg; toolbox for tracking and displaying application state in MVC-style apps. Push typed status objects (Running, Error, Warning, Success, …) onto a shared stack; one or more views observe the stack and automatically update progress dialogs, command-window output, or log files in response.
 
-### *Key things to remember* (delete this section)
-<!--- If your project includes a visualation or any images or an App please include a screenshot in this README --->
-
-* *The `README.md` should be compelling, look good, and be end-user focused.  It should have a call to action or next step for the person reading (e.g. "How to get started.").  Remember that the README.md is very prominent on GitHub, and is the first thing people see when they discover your contribution through a search, and is what is shown in File Exchange when a repository is linked. Appropriate base products like "MATLAB&reg;" or "Simulink&reg;" should be mentioned for SEO.  [ChatGTP inside](https://chatgpt-inside.mathworks.com/) can be a huge help with this.*
-* ***All MathWorks&reg; products and 3rd party trademarks need to be correctly marked the first time they are prominently used.** Markdown supports the following (note the leading ampersand and trailing semicolon): <br> &reg; - `&reg;`<br>
-&trade; - `&trade;`<br>
-See the current [MathWorks trademark list](https://mathworks.sharepoint.com/sites/legal/Web%20Site%20Documents/MathWorks%20Trademark%20List.doc?web=1) and [Third Party Trademark list](https://mathworks.sharepoint.com/sites/legal/_layouts/15/Doc.aspx?sourcedoc=%7BDB9D189F-834C-4F58-80C7-EEF2A2F70677%7D&file=Third%20Party%20Trademark%20List%20.docx&action=default&mobileredirect=true&DefaultItemOpen=1).  If a third party trademark isn't there, please do a little research, such as looking at their legal web page  or seeing what the 3rd party does with their own trademarks and use that. Complete guidelines are in the [Internal Trademark Policy](https://mathworks.sharepoint.com/sites/legal/Web%20Site%20Documents/Internal%20Trademark%20Policy.doc?d=w3bd92cf01b764832b797b4763205219c&csf=1&e=povfNV).*
-* *If your repository plans to accept contributions, you should include the `CONTRIBUTING.md` file from this repository.  If you **do not accept contributions**, don't copy the `CONTRIBUTING.md` file.*
-* *When describing installation, prefer the add-on explorer / add-on side panel installation workflow.*
-* *Make sure that you have a copyright notice at the end with the correct year.*
-* *Please remember to delete all template related text that you are not using within your `README.md`*
-
-<!--- Please remember to delete all template related text that you are not using within your README.md ---> 
-
-## Setup 
-To Run:
-1. Step 1
-2. Step 2
-
-Additional information about set up
+## Setup
 
 ### MathWorks Products (https://www.mathworks.com)
 
-*see the comment on trademarks above!*
+Requires MATLAB release R2025a or newer.
 
-Requires MATLAB release R#### or newer
-- [Product1](https://url-to-product1)
-- [Product1](https://url-to-product1)
+- [MATLAB](https://www.mathworks.com/products/matlab.html)
 
-### 3rd Party Products:
-3p:
-- [Product1](https://url-to-product1)
-- [Product2](https://url-to-product2)
+## Installation
 
-## Installation (Optional)
-Installation instuctions
+Install Status Manager directly from the MATLAB Add-On Explorer, or install the `.mltbx` file manually:
 
-Before proceeding, ensure that the below products are installed:  
-* [Product1](https://url-to-product1) 
+1. Download `StatusManager 1.5.0.mltbx` from the [releases](releases/) folder.
+2. Double-click the file in MATLAB to open the Add-On installer and follow the prompts.
 
-Please see the [documentation](Documentation/Installation.md) for detailed installation instructions. 
-<!--- Make sure you have a Installation.md document in the Documentation folder if you are to follow this formatting.  You can choose your own folder formatting if you prefer --->
+**Programmatic installation** — to pin a specific version as a dependency of another project, copy `src/installStatusManager.m` into that project's startup script:
 
-1. Step 1
-2. Step 2
+```matlab
+installStatusManager(RequiredVersion="1.5.0", ToolboxPath="dependencies")
+```
 
-## Deployment Steps (Optional) 
+## Getting Started
 
-To view instructions for deploying <insert repo name>, select a MATLAB release: 
-<!--- This is for Repos that utillize Releases in GitHub --->
+Open the interactive getting-started guide:
 
-| Release |
-| ------- |
-| [R2024a](releases/R2024a/README.md) |
-| [R2023b](releases/R2023b/README.md) |
-| [R2023a\_and\_older](releases/R2023a_and_older/README.md) |
+```matlab
+open doc/GettingStarted.m
+```
 
-## Getting Started 
-Information about Getting Started
-<!--- List or link to any relevent Documentation to help the user Get Started --->
+Or follow the quick-start steps below.
+
+**1. Create a status stack**
+
+```matlab
+stack = statusMgr.Stack();
+```
+
+**2. Attach a view**
+
+```matlab
+% GUI progress dialogs and alerts (recommended for App Designer apps)
+f = uifigure();
+statusMgr.view.Popup(f, stack);
+
+% Plain-text output to the command window
+statusMgr.view.CommandWindow(stack);
+
+% Append every status to a log file
+statusMgr.view.FileLog(stack, LogFolder=pwd);
+```
+
+**3. Push and remove statuses**
+
+```matlab
+% Second output is an onCleanup object — status is removed when it goes out of scope
+[status, cleanup] = stack.addStatus("Running", Message="Loading data…");
+loadMyData();
+clear cleanup  % removes the Running status; view updates automatically
+
+% Or remove explicitly
+stack.removeStatus(status);
+```
+
+**4. Capture errors and warnings automatically**
+
+```matlab
+result = stack.run(@myFunction);   % Running → clears on success, Error on failure
+```
+
+### Available status types
+
+| Type | Popup view behaviour |
+|---|---|
+| `Running` | Indeterminate progress dialog |
+| `RunningCancellable` | Progress dialog with Cancel button |
+| `Error` | Alert dialog with red icon |
+| `Warning` | Alert dialog with yellow icon |
+| `Success` | Alert dialog with green icon |
+| `Info` | Alert dialog with info icon |
+| `Idle` | Clears any active dialog (default state) |
+
+### Key features
+
+- **Stack semantics** — statuses stack; removing the top status reveals the one beneath, so nested operations compose naturally.
+- **Multiple views** — attach as many views as needed to the same stack; each updates independently.
+- **Array stacks** — broadcast a status to several stacks at once: `[stack1, stack2].addStatus("Running")`.
+- **Suppression** — hide specific identifiers without removing them: `stack.suppressIdentifier("my:warning:id")`.
+- **Monitorable classes** — any class that extends `statusMgr.monitorable.Monitorable` can emit statuses that are automatically forwarded to a watching stack.
+- **User input** — request a string from the user through whichever view is active, with a timeout and default fallback.
 
 ## Examples
-To learn how to use this in testing workflows, see [Examples](/examples/). 
-<!--- Make sure you have a repo set up correctly if you are to follow this formatting --->
+
+See [`doc/GettingStarted.m`](doc/GettingStarted.m) for a full walkthrough including progress bars, cancellable operations, error capture, and monitorable classes.
 
 ## License
-<!--- Make sure you have a License.txt within your Repo --->
 
-The license is available in the License.txt file in this GitHub repository.
+The license is available in the [license.txt](license.txt) file in this GitHub repository.
 
 ## Community Support
+
 [MATLAB Central](https://www.mathworks.com/matlabcentral)
 
-<!--- Copyright Info --->
-<!--- Files in community contributions under BSD should not have a copyright.  The copyright in the LICENSE.txt file is sufficent --->
-<!--- MLL or Cloud Reference Arch licensed material must have a copyright on each file. --->
-<!--- Copyright <YEAR> The MathWorks, Inc. --->
-<!--- See https://mathworks.sharepoint.com/:w:/s/OpenSourceProgram/EQsOMx5YBrlBnRsOCl6vyRUBt80v2brpdi5ftX1_hXu-ig?e=CmIMih --->
-
-<!--- Do not forget to the add the SECURITY.md to this repo --->
-<!--- Add Topics #Topics to your Repo such as #MATLAB  --->
-
-<!--- This is my comment --->
-
-<!-- Include any Trademarks if this is the first time mentioning trademarked products (For Example:  MATLAB&reg; Simulink&reg; Trademark&trade; Simulink Test&#8482;) --> 
-
+Copyright 2025 The MathWorks, Inc.
