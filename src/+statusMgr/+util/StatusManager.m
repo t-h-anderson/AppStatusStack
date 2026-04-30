@@ -45,10 +45,8 @@ classdef StatusManager < handle
                 nvp.LogFolder               (1,1) string  = string(nan)
             end
 
-            m = statusMgr.util.StatusManager.groups();
-
-            if isKey(m, char(name))
-                smg = m(char(name));
+            if statusMgr.util.StatusManager.dictOp('isKey', name)
+                smg = statusMgr.util.StatusManager.dictOp('get', name);
                 return
             end
 
@@ -64,7 +62,7 @@ classdef StatusManager < handle
                 smg.addView(statusMgr.view.FileLog(smg.Stack, LogFolder=nvp.LogFolder));
             end
 
-            m(char(name)) = smg;
+            statusMgr.util.StatusManager.dictOp('set', name, smg);
         end
 
         function result = get(name, nvp)
@@ -80,16 +78,14 @@ classdef StatusManager < handle
                     = "Stack"
             end
 
-            m = statusMgr.util.StatusManager.groups();
-
-            if name == "Default" && ~isKey(m, "Default")
+            if name == "Default" && ~statusMgr.util.StatusManager.dictOp('isKey', name)
                 statusMgr.util.StatusManager.make("Default");
-            elseif ~isKey(m, char(name))
+            elseif ~statusMgr.util.StatusManager.dictOp('isKey', name)
                 error("statusMgr:StatusManager:unknownGroup", ...
                     "No group named '%s'. Call StatusManager.make() first.", name);
             end
 
-            smg = m(char(name));
+            smg = statusMgr.util.StatusManager.dictOp('get', name);
 
             switch nvp.Type
                 case "Stack"
@@ -106,11 +102,10 @@ classdef StatusManager < handle
             arguments
                 name (1,1) string = string(nan)
             end
-            m = statusMgr.util.StatusManager.groups();
             if ismissing(name)
-                remove(m, keys(m));
-            elseif isKey(m, char(name))
-                remove(m, char(name));
+                statusMgr.util.StatusManager.dictOp('clearAll');
+            elseif statusMgr.util.StatusManager.dictOp('isKey', name)
+                statusMgr.util.StatusManager.dictOp('remove', name);
             else
                 error("statusMgr:StatusManager:unknownGroup", ...
                     "No group named '%s'.", name);
@@ -139,7 +134,7 @@ classdef StatusManager < handle
         function addFileLog(name, nvp)
             %ADDFILELOG Add a FileLog view to a named group.
             arguments
-                name          (1,1) string              = "Default"
+                name          (1,1) string                = "Default"
                 nvp.LogFolder (1,1) string {mustBeFolder} = pwd
             end
             smg = statusMgr.util.StatusManager.get(name, Type="StatusManagerGroup");
@@ -172,16 +167,35 @@ classdef StatusManager < handle
 
     methods (Static, Access = private)
 
-        function m = groups()
-            %GROUPS Return the persistent containers.Map of StatusManagerGroups.
+        function varargout = dictOp(op, varargin)
+            %DICTOP Dispatcher owning the persistent dictionary.
             %
-            % containers.Map is a handle type, so all static methods share
-            % the same map instance without a dispatcher wrapper.
-            persistent map
-            if isempty(map)
-                map = containers.Map('KeyType', 'char', 'ValueType', 'any');
+            % dictionary is a value type, so returning it from a method
+            % would yield a copy — modifications would not propagate back.
+            % Centralising all reads and writes here keeps every operation
+            % on the single persistent instance.
+            persistent d
+            if isempty(d)
+                d = dictionary( ...
+                    string.empty(1,0), ...
+                    statusMgr.util.StatusManagerGroup.empty(1,0));
             end
-            m = map;
+            switch op
+                case 'isKey'
+                    varargout{1} = isKey(d, varargin{1});
+                case 'get'
+                    varargout{1} = d(varargin{1});
+                case 'set'
+                    d(varargin{1}) = varargin{2};
+                case 'remove'
+                    d = remove(d, varargin{1});
+                case 'keys'
+                    varargout{1} = keys(d);
+                case 'clearAll'
+                    d = dictionary( ...
+                        string.empty(1,0), ...
+                        statusMgr.util.StatusManagerGroup.empty(1,0));
+            end
         end
 
     end
