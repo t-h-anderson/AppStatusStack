@@ -71,7 +71,7 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet
                 case {statusMgr.StatusType.AwaitingInput, statusMgr.StatusType.ValueSupplied}
                     % Intermediate input states — no display action needed.
                 otherwise
-                    error("Unknow status type");
+                    error("Unknown status type");
             end % switch
 
             

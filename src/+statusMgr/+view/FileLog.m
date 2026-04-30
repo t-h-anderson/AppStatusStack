@@ -129,13 +129,13 @@ classdef FileLog < statusMgr.internal.view.StatusViewInterface
             line = line + "[" + string(status.Type) + "] ";
 
             if obj.IncludeIdentifier
-                if ~isempty(status.Identifier) && status.Identifier ~= ""
+                if status.Identifier ~= ""
                     line = line + "[" + status.Identifier + "] ";
                 end
             end
 
             if obj.IncludeValue
-                if ~isempty(status.Value) && ~isnan(status.Value)
+                if ~isnan(status.Value)
                     line = line + "[Value=" + status.Value + "] ";
                 end
             end

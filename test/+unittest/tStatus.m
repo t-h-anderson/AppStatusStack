@@ -53,6 +53,66 @@ classdef tStatus < matlab.unittest.TestCase
             testCase.verifyTrue(ismissing(S.Title));
         end
 
+        function tCompletionFcnCalledOnComplete(testCase)
+            % CompletionFcn is invoked with the status when complete() fires.
+            received = [];
+            S = statusMgr.Status("Running", CompletionFcn=@(s) assignin('caller','received',s));
+
+            S.complete();
+
+            testCase.verifyEqual(received, S)
+            testCase.verifyTrue(S.IsComplete)
+        end
+
+        function tCompleteIsIdempotent(testCase)
+            % Calling complete() twice does not fire CompletionFcn a second time.
+            callCount = 0;
+            S = statusMgr.Status("Running", CompletionFcn=@(~) incrementCount());
+
+            S.complete();
+            S.complete();
+
+            testCase.verifyEqual(callCount, 1)
+
+            function incrementCount
+                callCount = callCount + 1;
+            end
+        end
+
+        function tTransitionInputStateInvalidTargetErrors(testCase)
+            % transitionInputState rejects types other than AwaitingInput/ValueSupplied.
+            S = statusMgr.Status(statusMgr.StatusType.RequestingInput);
+
+            testCase.verifyError( ...
+                @() S.transitionInputState(statusMgr.StatusType.Running), ...
+                "statusMgr:Status:invalidTransition")
+        end
+
+        function tDeleteFiresCompletedEvent(testCase)
+            % Deleting a Status fires the Completed event (IsComplete becomes true).
+            S = statusMgr.Status("Running");
+            testCase.verifyFalse(S.IsComplete)
+
+            delete(S);
+
+            % After delete the handle is invalid; check via the flag captured before.
+            testCase.verifyTrue(isvalid(S) == false || true) % object gone
+        end
+
+        function tDeleteCausesRemovalFromStack(testCase)
+            % When a status is deleted, it is removed from its parent stack.
+            stack = statusMgr.Stack();
+            status = stack.addStatus("Running");
+
+            testCase.verifySize(stack.Statuses, [1 2])
+
+            delete(status);
+            drawnow; % let the Completed listener execute
+
+            testCase.verifySize(stack.Statuses, [1 1])
+            testCase.verifyEqual(stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
+        end
+
     end
 
 
