@@ -25,22 +25,24 @@ classdef StatusManager < handle
     %   statusMgr.util.StatusManager.removeView("MyGroup", idx)
 
     properties (Access = private)
-        Groups
+        Groups (1,1) dictionary = configureDictionary("string", "statusMgr.util.StatusManagerGroup")
     end
 
     methods (Access = private)
-
         function obj = StatusManager()
             obj.Groups = configureDictionary("string", "statusMgr.util.StatusManagerGroup");
         end
-
     end
 
     methods (Static, Access = private)
 
-        function obj = instance()
+        function obj = instance(reset)
+            arguments
+                reset (1,1) logical = false
+            end
             persistent singleton
-            if isempty(singleton) || ~isvalid(singleton)
+            
+            if reset || isempty(singleton) || ~isvalid(singleton)
                 singleton = statusMgr.util.StatusManager();
             end
             obj = singleton;
@@ -50,8 +52,8 @@ classdef StatusManager < handle
 
     methods (Static)
 
-        function smg = make(name, nvp)
-            %MAKE Return or create a named StatusManagerGroup.
+        function stack = make(name, nvp)
+            %MAKE Return or create a named stack with groups attached.
             %
             % If the group already exists it is returned unchanged.
             % Construction arguments are only applied on first creation.
@@ -67,6 +69,7 @@ classdef StatusManager < handle
 
             if isKey(obj.Groups, name)
                 smg = obj.Groups(name);
+                stack = smg.Stack;
                 return
             end
 
@@ -83,6 +86,8 @@ classdef StatusManager < handle
             end
 
             obj.Groups(name) = smg;
+
+            stack = smg.Stack;
         end
 
         function result = get(name, nvp)
@@ -104,7 +109,7 @@ classdef StatusManager < handle
                 statusMgr.util.StatusManager.make("Default");
             elseif ~isKey(obj.Groups, name)
                 error("statusMgr:StatusManager:unknownGroup", ...
-                    "No group named '%s'. Call StatusManager.make() first.", name);
+                    "No status manager named '%s'. Call StatusManager.make(" + name + ") first.", name);
             end
 
             smg = obj.Groups(name);
@@ -124,19 +129,20 @@ classdef StatusManager < handle
             arguments
                 name (1,1) string = string(nan)
             end
+
             obj = statusMgr.util.StatusManager.instance();
             if ismissing(name)
-                obj.Groups = configureDictionary("string", "statusMgr.util.StatusManagerGroup");
+                statusMgr.util.StatusManager.instance(true);
             elseif isKey(obj.Groups, name)
                 obj.Groups = remove(obj.Groups, name);
             else
                 error("statusMgr:StatusManager:unknownGroup", ...
-                    "No group named '%s'.", name);
+                    "No status manager named '%s'.", name);
             end
         end
 
         function addPopup(name, nvp)
-            %ADDPOPUP Add a Popup view to a named group.
+            %ADDPOPUP Add a Popup view to a named status manager group.
             arguments
                 name       (1,1) string = "Default"
                 nvp.Parent               = []
