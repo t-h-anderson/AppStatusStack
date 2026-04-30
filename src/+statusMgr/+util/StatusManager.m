@@ -65,7 +65,6 @@ classdef StatusManager < handle
             elseif isempty(action)
                 singleton = [];
             end
-
             obj = singleton;
         end
 
