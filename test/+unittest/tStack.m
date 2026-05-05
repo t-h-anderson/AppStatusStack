@@ -458,6 +458,46 @@ classdef tStack < matlab.unittest.TestCase
             testCase.verifyTrue(status.IsComplete)
         end
 
+        function tAddStatusCleanupObjFalseReturnsOnCleanupType(testCase)
+            % When CreateCleanupObj=false, the second output is an empty
+            % onCleanup (consistent with the empty-stack branch), not a cell.
+            S = statusMgr.Stack();
+            [~, cleanupObj] = S.addStatus("Warning", CreateCleanupObj=false);
+
+            testCase.verifyClass(cleanupObj, "onCleanup")
+            testCase.verifyEmpty(cleanupObj)
+        end
+
+        function tStackDeleteCleansUpMonitorableListeners(testCase)
+            % Stack.delete must dispose of StackMonitorableListeners as well
+            % as StatusListeners; otherwise monitorable listeners leak.
+            S = statusMgr.Stack();
+            obj = statusMgr.demo.Monitorable;
+            S.monitor(obj);
+
+            listeners = S.StackMonitorableListeners;
+            testCase.assertNotEmpty(listeners)
+            testCase.assertTrue(all(isvalid(listeners)))
+
+            delete(S);
+
+            testCase.verifyFalse(any(isvalid(listeners)))
+        end
+
+        function tStackDeleteCleansUpStatusListeners(testCase)
+            % Companion check for the existing StatusListeners cleanup.
+            S = statusMgr.Stack();
+            S.addStatus("Running");
+
+            listeners = S.StatusListeners;
+            testCase.assertNotEmpty(listeners)
+            testCase.assertTrue(all(isvalid(listeners)))
+
+            delete(S);
+
+            testCase.verifyFalse(any(isvalid(listeners)))
+        end
+
         function tRequestInputStatusPushedWithCorrectProperties(testCase)
             % The RequestingInput status carries the prompt in Message,
             % the title in Title, and the default in Data.

@@ -30,6 +30,7 @@ classdef Stack < statusMgr.internal.StackInterface
 
         function delete(obj)
             delete(obj.StatusListeners);
+            delete(obj.StackMonitorableListeners);
         end
     end
 
@@ -149,7 +150,7 @@ classdef Stack < statusMgr.internal.StackInterface
                 removeStatusFn = @() objs.removeStatus(newStatus);
                 cleanupObj = onCleanup(removeStatusFn);
             else
-                cleanupObj = {};
+                cleanupObj = onCleanup.empty(1,0);
             end
 
             % Notify that the status has changed

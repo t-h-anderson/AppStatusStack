@@ -74,11 +74,11 @@ classdef (Abstract) StatusViewInterface < matlab.mixin.SetGet & matlab.mixin.Het
                     error("Unknown status type");
             end % switch
 
-            function delete(obj)
-                delete(obj.StackListener);
-            end
-
         end % standardDisplay
+
+        function delete(obj)
+            delete(obj.StackListener);
+        end
 
         function setStack(obj, stack)
 

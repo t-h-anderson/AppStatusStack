@@ -113,6 +113,20 @@ classdef tCommandWindow < matlab.uitest.TestCase
 
         % --- handleInputRequest ---------------------------------------------
 
+        function tDeleteCleansUpStackListener(testCase)
+            % Destroying a view must dispose of its StackListener so it no
+            % longer responds to events on its (still-alive) Stack. Prior
+            % to the fix, the cleanup was a nested function inside
+            % standardDisplay and never ran.
+            view = statusMgr.view.CommandWindow(testCase.Stack);
+            listener = view.StackListener;
+            testCase.assertTrue(isvalid(listener))
+
+            delete(view);
+
+            testCase.verifyFalse(isvalid(listener))
+        end
+
         function tHandleInputRequestDefaultValues(testCase)
             % HandleInputRequests is true by default.
             testCase.verifyTrue(testCase.CommandWindowView.HandleInputRequests)
