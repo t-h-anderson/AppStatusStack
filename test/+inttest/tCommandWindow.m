@@ -230,20 +230,32 @@ classdef tCommandWindow < matlab.uitest.TestCase
 
         function tWriteToTerminalRepeatedMessagePrintsDot(testCase)
             % Two consecutive identical messages produce a "." for the
-            % second. We bypass standardDisplay/beforeDisplay (which
-            % resets PreviousMessage) by driving writeToTerminal directly
-            % via the mock subclass.
+            % second when ShowRepeatedAsDots is true (the default).
             diaryFile = testCase.diaryFixture();
-            mock = inttest.helpers.MockCommandWindow(testCase.Stack);
-            testCase.addTeardown(@() delete(mock));
 
-            mock.callWriteToTerminal("same");
-            mock.callWriteToTerminal("same");
+            testCase.Stack.addStatus("Info", Message="same");
+            testCase.Stack.addStatus("Info", Message="same");
             diary off
 
             lines = strjoin(readlines(diaryFile), newline);
             testCase.verifyTrue(contains(lines, "same"));
             testCase.verifyTrue(contains(lines, "."));
+        end
+
+        function tShowRepeatedAsDotsDisabledPrintsFullMessage(testCase)
+            % With ShowRepeatedAsDots=false, a repeated message is printed
+            % in full instead of being collapsed to a dot.
+            testCase.CommandWindowView.ShowRepeatedAsDots = false;
+            diaryFile = testCase.diaryFixture();
+
+            testCase.Stack.addStatus("Info", Message="same");
+            testCase.Stack.addStatus("Info", Message="same");
+            diary off
+
+            lines = readlines(diaryFile);
+            % Expect "same" on at least two separate lines.
+            sameLines = sum(contains(lines, "same"));
+            testCase.verifyGreaterThanOrEqual(sameLines, 2)
         end
 
     end

@@ -13,8 +13,14 @@ classdef Status < matlab.mixin.SetGet
         User (1,1) string = ""
 
         IsTemporary (1,1) logical = false % Remove when next status added
-        IsComplete (1,1) logical = false % Has the status been completed
         CompletionFcn (1,:) function_handle {mustBeScalarOrEmpty}
+    end
+
+    properties (SetAccess = protected, SetObservable)
+        % SetObservable so callers can use `waitfor(status, 'IsComplete', true)`
+        % to block until the status is resolved (completed externally or by
+        % an input view supplying a value).
+        IsComplete (1,1) logical = false
     end
 
     properties (SetObservable)
@@ -94,6 +100,13 @@ classdef Status < matlab.mixin.SetGet
             obj.Type = newType;
             if newType == statusMgr.StatusType.ValueSupplied
                 obj.Message = value;
+                % Setting IsComplete (which is SetObservable) unblocks any
+                % `waitfor` in Stack.requestInput. We deliberately do NOT
+                % go through complete(), because that would fire the
+                % "Completed" event and trigger Stack.onStatusCompleted to
+                % remove the status — the caller's onCleanup already does
+                % that, and double-removal is harmless but noisy.
+                obj.IsComplete = true;
             end
         end
 

@@ -394,26 +394,25 @@ classdef Stack < statusMgr.internal.StackInterface
                 Data=nvp.DefaultValue);
             cleanupStatus = onCleanup(@() obj.removeStatus(status)); %#ok<NASGU>
 
-            % Poll until a view claims the request or the timeout expires.
-            t = tic;
-            while status.Type == statusMgr.StatusType.RequestingInput ...
-                    && toc(t) < nvp.Timeout
-                drawnow;
-                pause(0.05);
-            end
+            % If no view has claimed the request after Timeout seconds,
+            % auto-resolve with the default value. The handler is a no-op
+            % once the status has already been resolved (IsComplete=true)
+            % or a view has claimed it (Type=AwaitingInput).
+            weakStatus = matlab.lang.WeakReference(status);
+            timeoutTimer = timer( ...
+                "StartDelay", nvp.Timeout, ...
+                "ExecutionMode", "singleShot", ...
+                "TimerFcn", @(~,~) statusMgr.Stack.resolveOnTimeout(weakStatus, nvp.DefaultValue));
+            cleanupTimer = onCleanup(@() statusMgr.util.stopTimer(timeoutTimer)); %#ok<NASGU>
+            start(timeoutTimer);
 
-            % Nobody claimed it in time — return the default.
-            if status.Type == statusMgr.StatusType.RequestingInput
-                value = nvp.DefaultValue;
-                return;
-            end
-
-            % A view claimed it; wait indefinitely for ValueSupplied.
-            % Also exit if the status is forcibly removed (IsComplete=true)
-            % to avoid an infinite loop when no ValueSupplied transition occurs.
-            while status.Type == statusMgr.StatusType.AwaitingInput && ~status.IsComplete
-                drawnow;
-                pause(0.05);
+            % Block until the status is resolved. A view supplying a value
+            % via transitionInputState(ValueSupplied) sets IsComplete=true,
+            % as does external completion (e.g. removeAllStatuses) and the
+            % timeout above. waitfor yields to the event loop while it
+            % blocks, so timers and UI callbacks still fire.
+            if ~status.IsComplete
+                waitfor(status, "IsComplete", true);
             end
 
             if status.Type == statusMgr.StatusType.ValueSupplied
@@ -485,6 +484,25 @@ classdef Stack < statusMgr.internal.StackInterface
         function onMonitorableStatusChanged(obj, s, e)
             status = e.Status;
             obj.add(status);
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function resolveOnTimeout(weakStatus, defaultValue)
+            % requestInput timeout handler. Resolves with the default
+            % value only if no view has claimed the request yet
+            % (Type still RequestingInput). If a view has claimed
+            % (AwaitingInput), the wait is unbounded by design.
+            s = weakStatus.Handle;
+            if isempty(s) || ~isvalid(s) || s.IsComplete
+                return
+            end
+            if s.Type == statusMgr.StatusType.RequestingInput
+                s.transitionInputState( ...
+                    statusMgr.StatusType.ValueSupplied, defaultValue);
+            end
         end
 
     end
