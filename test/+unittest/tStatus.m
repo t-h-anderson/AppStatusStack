@@ -141,6 +141,28 @@ classdef tStatus < matlab.unittest.TestCase
             end
         end
 
+        function tDeleteArrayWithDestroyedSiblingExercisesCatch(testCase)
+            % Pre-deleting one element makes property access throw on it
+            % during the array delete. The per-element try/catch must
+            % swallow that and still notify the surviving sibling.
+            S1 = statusMgr.Status("Running");
+            S2 = statusMgr.Status("Running");
+            delete(S1);
+            testCase.assertFalse(isvalid(S1))
+
+            count = 0;
+            l2 = event.listener(S2, "Completed", @(~,~) bump());
+            testCase.addTeardown(@() delete(l2));
+
+            delete([S1 S2]);
+
+            testCase.verifyEqual(count, 1)
+
+            function bump()
+                count = count + 1;
+            end
+        end
+
         function tDeleteArraySkipsAlreadyCompleteElements(testCase)
             % Already-complete statuses don't re-fire Completed when the
             % array is deleted; only the still-open ones do.

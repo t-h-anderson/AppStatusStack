@@ -120,10 +120,8 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
         end
 
         function handleInputRequest(obj, status)
-            if ~obj.isVisible()
-                return;
-            end
-
+            % standardDisplay already guards on isVisible() before
+            % dispatching, so we don't repeat the check here.
             status.transitionInputState(statusMgr.StatusType.AwaitingInput);
 
             titleStr = status.Title;

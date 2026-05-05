@@ -29,6 +29,63 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyFalse(testCase.PopupView.ShowIdle)
         end
 
+        function tDefaultConstructorCreatesUifigureAndStack(testCase)
+            % statusMgr.view.Popup() with no args defaults parent to a
+            % fresh uifigure and stack to a new Stack. Exercises the
+            % `parent = uifigure` and `stack = statusMgr.Stack` defaults.
+            view = statusMgr.view.Popup();
+            testCase.addTeardown(@() delete(view.Parent))
+            testCase.addTeardown(@() delete(view))
+
+            testCase.assertClass(view.Parent, "matlab.ui.Figure")
+            testCase.verifyTrue(isvalid(view.Parent))
+            testCase.assertClass(view.Stack, "statusMgr.Stack")
+        end
+
+        function tDisplayRunningDefaultCancellableArg(testCase)
+            % Calling displayRunning with only the status argument applies
+            % the cancellable=false default. Use a private fixture stack
+            % so this view is the only listener.
+            fig = figure(Position=[1 1 400 200]);
+            testCase.addTeardown(@() delete(fig))
+            stack = statusMgr.Stack();
+            view = inttest.helpers.PopupAccess(fig, stack);
+            testCase.addTeardown(@() delete(view))
+
+            status = statusMgr.Status("Running", "x");
+            testCase.verifyWarningFree(@() view.callDisplayRunningNoCancellable(status));
+        end
+
+        function tPopupAlertDefaultTitleAndIcon(testCase)
+            % popupAlert(status) without title/icon applies the
+            % "Error"/"error" defaults. Use a private fixture stack so
+            % only this view's uiconfirm dialog is produced, then dismiss.
+            fig = figure(Position=[1 1 400 200]);
+            testCase.addTeardown(@() delete(fig))
+            stack = statusMgr.Stack();
+            view = inttest.helpers.PopupAccess(fig, stack);
+            testCase.addTeardown(@() delete(view))
+
+            status = statusMgr.Status("Error", "m");
+            view.callPopupAlertDefaults(status);
+            testCase.chooseDialog("uiconfirm", fig, "OK")
+        end
+
+        function tProgressDlgIndeterminateAfterDeterminate(testCase)
+            % Switching a status from a determinate Value back to NaN
+            % flips ProgressDlg.Indeterminate from "off" to "on". Covers
+            % the else branch in updateProgressDlg.
+            status = testCase.Stack.addStatus("Running", Message="r1", Value=0.4);
+            pause(0.2)
+            testCase.assertEqual(testCase.PopupView.ProgressDlg.Indeterminate, 'off')
+
+            testCase.Stack.updateStatus(status, Value=NaN);
+            % updateStatus on the current status notifies StatusUpdated,
+            % which re-runs the view; the indeterminate path is taken.
+            pause(0.2)
+            testCase.verifyEqual(testCase.PopupView.ProgressDlg.Indeterminate, 'on')
+        end
+
         function tDismissError(testCase)
             % Dismiss the error dialog and check the stack is
             % updated accordingly.

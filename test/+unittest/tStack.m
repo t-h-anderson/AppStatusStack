@@ -359,6 +359,15 @@ classdef tStack < matlab.unittest.TestCase
 
         % --- requestInput ---------------------------------------------------
 
+        function tRequestInputNoArgsUsesEmptyPromptAndDefaults(testCase)
+            % Calling requestInput() with no arguments applies the prompt,
+            % DefaultValue, Title, and Timeout defaults.
+            S = statusMgr.Stack();
+            value = S.requestInput();
+
+            testCase.verifyEqual(value, "")
+        end
+
         function tRequestInputReturnsDefaultWhenNoViewAttached(testCase)
             % With no views listening, requestInput returns DefaultValue
             % once the timeout elapses.
