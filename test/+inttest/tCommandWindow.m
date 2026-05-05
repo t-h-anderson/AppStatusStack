@@ -229,11 +229,17 @@ classdef tCommandWindow < matlab.uitest.TestCase
         end
 
         function tWriteToTerminalRepeatedMessagePrintsDot(testCase)
-            % Repeated identical messages produce a "." rather than a fresh line.
+            % Two consecutive identical messages produce a "." for the
+            % second. We bypass standardDisplay/beforeDisplay (which
+            % resets PreviousMessage) by driving writeToTerminal directly
+            % via the mock subclass.
             diaryFile = testCase.diaryFixture();
+            mock = inttest.helpers.MockCommandWindow(testCase.Stack);
+            testCase.addTeardown(@() delete(mock));
 
-            testCase.Stack.addStatus("Info", Message="same");
-            testCase.Stack.addStatus("Info", Message="same");
+            mock.callWriteToTerminal("same");
+            mock.callWriteToTerminal("same");
+            diary off
 
             lines = strjoin(readlines(diaryFile), newline);
             testCase.verifyTrue(contains(lines, "same"));

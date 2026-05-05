@@ -31,14 +31,16 @@ classdef tPopupView < matlab.uitest.TestCase
 
         function tDefaultConstructorCreatesUifigureAndStack(testCase)
             % statusMgr.view.Popup() with no args defaults parent to a
-            % fresh uifigure and stack to a new Stack. Exercises the
-            % `parent = uifigure` and `stack = statusMgr.Stack` defaults.
+            % fresh uifigure and stack to a new Stack. Capture the parent
+            % handle separately so its teardown does not depend on view
+            % still being valid.
             view = statusMgr.view.Popup();
-            testCase.addTeardown(@() delete(view.Parent))
+            parent = view.Parent;
+            testCase.addTeardown(@() delete(parent))
             testCase.addTeardown(@() delete(view))
 
-            testCase.assertClass(view.Parent, "matlab.ui.Figure")
-            testCase.verifyTrue(isvalid(view.Parent))
+            testCase.assertClass(parent, "matlab.ui.Figure")
+            testCase.verifyTrue(isvalid(parent))
             testCase.assertClass(view.Stack, "statusMgr.Stack")
         end
 
@@ -74,16 +76,16 @@ classdef tPopupView < matlab.uitest.TestCase
         function tProgressDlgIndeterminateAfterDeterminate(testCase)
             % Switching a status from a determinate Value back to NaN
             % flips ProgressDlg.Indeterminate from "off" to "on". Covers
-            % the else branch in updateProgressDlg.
+            % the else branch in updateProgressDlg. Compare via string to
+            % be robust to ProgressDlg.Indeterminate returning either a
+            % char or a matlab.lang.OnOffSwitchState.
             status = testCase.Stack.addStatus("Running", Message="r1", Value=0.4);
             pause(0.2)
-            testCase.assertEqual(testCase.PopupView.ProgressDlg.Indeterminate, 'off')
+            testCase.assertEqual(string(testCase.PopupView.ProgressDlg.Indeterminate), "off")
 
             testCase.Stack.updateStatus(status, Value=NaN);
-            % updateStatus on the current status notifies StatusUpdated,
-            % which re-runs the view; the indeterminate path is taken.
             pause(0.2)
-            testCase.verifyEqual(testCase.PopupView.ProgressDlg.Indeterminate, 'on')
+            testCase.verifyEqual(string(testCase.PopupView.ProgressDlg.Indeterminate), "on")
         end
 
         function tDismissError(testCase)
