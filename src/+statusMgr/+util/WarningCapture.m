@@ -3,9 +3,8 @@ classdef WarningCapture < handle
     %
     % The constructor saves the current warning state, silences warnings
     % so they do not pollute the command window during the captured
-    % region, and seeds `lastwarn` with a UUID sentinel so any later
-    % `lastwarn` change can be unambiguously attributed to a warning
-    % issued during the scope.
+    % region, and snapshots `lastwarn` so any later change can be
+    % attributed to a warning issued during the scope.
     %
     % Usage:
     %   captor = statusMgr.util.WarningCapture();
@@ -16,30 +15,39 @@ classdef WarningCapture < handle
     %   end
     %   % warning() state is restored automatically when captor is deleted
 
-    properties (SetAccess = private)
-        Sentinel (1,1) string
-    end
-
     properties (Access = private)
         SavedState
+        InitialMessage
+        InitialId
     end
 
     methods
         function obj = WarningCapture()
             obj.SavedState = warning();
             warning("off");
-            obj.Sentinel = statusMgr.util.uuid();
-            warning(obj.Sentinel, obj.Sentinel);
+            % Seed lastwarn with a UUID sentinel so we can distinguish
+            % "no warning issued" from "the warning that happened to be
+            % in lastwarn before we started". We then capture the
+            % current lastwarn AS THE BASELINE — whether or not the
+            % sentinel actually made it into lastwarn (warning('off')
+            % can suppress lastwarn updates in some configurations) —
+            % and compare against it later. This is robust to either
+            % behaviour.
+            sentinel = statusMgr.util.uuid();
+            warning(sentinel, sentinel);
+            [obj.InitialMessage, obj.InitialId] = lastwarn;
         end
 
         function [msg, id] = warning(obj)
             % Return the warning message and identifier of the last
             % warning issued since this capture started, or empty
-            % strings if none was issued. "MATLAB:callback:error" is
-            % filtered out — these come from errors raised inside
-            % unrelated callbacks during the captured region.
+            % strings if none. "MATLAB:callback:error" is filtered out
+            % — those come from errors raised inside unrelated callbacks
+            % during the captured region.
             [w, c] = lastwarn;
-            if strcmp(c, obj.Sentinel) || strcmp(c, "MATLAB:callback:error")
+            unchanged = strcmp(w, obj.InitialMessage) ...
+                && strcmp(c, obj.InitialId);
+            if unchanged || strcmp(c, "MATLAB:callback:error")
                 msg = "";
                 id = "";
             else
