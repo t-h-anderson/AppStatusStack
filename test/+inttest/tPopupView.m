@@ -220,11 +220,14 @@ classdef tPopupView < matlab.uitest.TestCase
         end
 
         function tCancelIndeterminateProgressDialog(testCase)
+            % This test fails sometimes because of the explicit click
+            % location. Running with a breakpoint on the "press" line
+            % sometimes fixes this
             status = testCase.Stack.addStatus("RunningCancellable", Message="test");
 
-            pause(0.2)
+            pause(2)
             testCase.press(testCase.Figure, [520,205]) % click the Cancel button
-            pause(0.2)
+            pause(2)
 
             testCase.verifyTrue(status.IsComplete)
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
