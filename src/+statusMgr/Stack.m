@@ -11,7 +11,10 @@ classdef Stack < statusMgr.internal.StackInterface
         StackMonitorableListeners
     end
 
-    properties
+    properties (SetAccess = protected)
+        % Use suppressIdentifier / unsuppressIdentifier to mutate. The
+        % setter is protected so callers can read the list but cannot
+        % bypass the de-duplication / removal helpers.
         SuppressedIdentifiers (1,:) string = string.empty(1,0)
     end
 
@@ -110,12 +113,11 @@ classdef Stack < statusMgr.internal.StackInterface
         end
 
         function [newStatus, cleanupObj] = add(objs, newStatus, nvp)
-            % Push a new status to the stack
+            % Push a new status onto each stack in objs.
             % [newStatus, cleanupObj] = add(args, newStatus)
             % cleanupObj is an optional output that creates a cleanup object
             % Name value pairs:
-            %   Silent (logical) - whether to notify the Status has
-            %   changed
+            %   Silent (logical) - whether to notify the Status has changed
             arguments
                 objs (1,:) statusMgr.Stack
                 newStatus (1,1) statusMgr.Status
@@ -127,37 +129,22 @@ classdef Stack < statusMgr.internal.StackInterface
                 nvp.CreateCleanupObj = false;
             end
 
-            % Distribute call to each stack
-            if numel(objs) > 1
-                nvpCell = namedargs2cell(nvp);
-                cleanupObj = cell(numel(objs), 1);
-                for i = 1:numel(objs)
-                    [newStatus, cleanupObj{i}] = objs(i).add(newStatus, nvpCell{:});
-                end
-                % newStatus = [newStatus{:}];
-                cleanupObj = [cleanupObj{:}];
-                return
-            elseif isempty(objs)
+            % Empty objs returns an empty Status to keep the contract.
+            if isempty(objs)
                 newStatus = statusMgr.Status.empty(1,0);
-                cleanupObj = onCleanup.empty(1,0);
-                return
             end
 
-            objs.appendStatus(newStatus);
-
-            % Create cleanup object for second argument
-            if nvp.CreateCleanupObj
-                removeStatusFn = @() objs.removeStatus(newStatus);
-                cleanupObj = onCleanup(removeStatusFn);
-            else
-                cleanupObj = onCleanup.empty(1,0);
+            cleanupObj = onCleanup.empty(1,0);
+            for i = 1:numel(objs)
+                obj = objs(i);
+                obj.appendStatus(newStatus);
+                if nvp.CreateCleanupObj
+                    cleanupObj(end+1) = onCleanup(@() obj.removeStatus(newStatus)); %#ok<AGROW>
+                end
+                if ~nvp.Silent
+                    notify(obj, "StatusUpdated");
+                end
             end
-
-            % Notify that the status has changed
-            if ~nvp.Silent
-                notify(objs, "StatusUpdated");
-            end
-
         end
 
         function [newStatus, cleanupObj] = addError(objs, err, nvp)
@@ -206,48 +193,35 @@ classdef Stack < statusMgr.internal.StackInterface
                 nvp.Value (1,1) double
             end
 
-            % Distribute to each stack
-            if isempty(objs)
-                return
-            elseif numel(objs) > 1
-                for i = 1:numel(objs)
-                    obj = objs(i);
-                    nvpCell = namedargs2cell(nvp);
-                    obj.updateStatus(status, nvpCell{:});
-                end
-                return
-            else
-                obj = objs;
-            end
-
-            % obj.CurrentStatus is guaranteed non-empty by get.Statuses
-            % (which restores an Idle default if the array is ever cleared).
-            currentStatus = obj.CurrentStatus;
-
-            if currentStatus.ID == status.ID
-                % Quickest to just update the current status
-                if isfield(nvp, "Message")
-                    obj.CurrentStatus.updateMessage(nvp.Message);
-                end
-                if isfield(nvp, "Value")
-                    obj.CurrentStatus.updateValue(nvp.Value);
-                end
-                if isfield(nvp, "Message") || isfield(nvp, "Value")
-                    notify(obj, "StatusUpdated");
-                end
-            else
-                % Otherwise find it in the stack. Note we don't issue the
-                % StatusUpdated event in this case because the view
-                % listeners update the views based on the latest status.
-                idx = ([obj.Statuses.ID] == status.ID);
-                if isfield(nvp, "Message")
-                    obj.Statuses(idx).updateMessage(nvp.Message);
-                end
-                if isfield(nvp, "Value")
-                    obj.Statuses(idx).updateValue(nvp.Value);
+            for i = 1:numel(objs)
+                obj = objs(i);
+                % obj.CurrentStatus is guaranteed non-empty by
+                % get.Statuses (which restores an Idle default if the
+                % array is ever cleared).
+                if obj.CurrentStatus.ID == status.ID
+                    % Quickest to just update the current status.
+                    if isfield(nvp, "Message")
+                        obj.CurrentStatus.updateMessage(nvp.Message);
+                    end
+                    if isfield(nvp, "Value")
+                        obj.CurrentStatus.updateValue(nvp.Value);
+                    end
+                    if isfield(nvp, "Message") || isfield(nvp, "Value")
+                        notify(obj, "StatusUpdated");
+                    end
+                else
+                    % Otherwise find it in the stack. We don't issue
+                    % StatusUpdated in this case because views read the
+                    % current (top) status, which hasn't changed.
+                    idx = ([obj.Statuses.ID] == status.ID);
+                    if isfield(nvp, "Message")
+                        obj.Statuses(idx).updateMessage(nvp.Message);
+                    end
+                    if isfield(nvp, "Value")
+                        obj.Statuses(idx).updateValue(nvp.Value);
+                    end
                 end
             end
-
         end
 
     end
