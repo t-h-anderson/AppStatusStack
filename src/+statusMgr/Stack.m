@@ -323,7 +323,16 @@ classdef Stack < statusMgr.internal.StackInterface
             obj.StackMonitorableListeners(end+1) = event.listener(monitorable, "StatusChanged", @(s,e) obj.onMonitorableStatusChanged(s,e));
         end
 
-        function varargout = run(obj, fcnHandle, varargin)
+        function varargout = run(obj, fcnHandle, varargin, nvp)
+            % Run a function while pushing a Running status onto the
+            % stack. By default, errors are caught and pushed as Error
+            % statuses, and any warning issued during the call is
+            % pushed as a Warning status.
+            %
+            %   stack.run(@myFcn)
+            %   stack.run(@myFcn, arg1, arg2)
+            %   stack.run(@myFcn, CatchErrors=false)
+            %   stack.run(@myFcn, arg1, arg2, CatchWarnings=false)
             arguments
                 obj (1,1) statusMgr.Stack
                 fcnHandle (1,1) function_handle
@@ -331,23 +340,21 @@ classdef Stack < statusMgr.internal.StackInterface
             arguments (Repeating)
                 varargin
             end
+            arguments
+                nvp.CatchErrors (1,1) logical = true
+                nvp.CatchWarnings (1,1) logical = true
+            end
 
-            % Store warning state and clear lastwarn
-            s = warning();
+            fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", ...
+                "Boundaries", "inclusive");
+            [~, statusCleanup] = obj.addStatus("Running", ...
+                "Message", "Running: " + fcnCallStr); %#ok<ASGLU>
 
-            % Turn the warning back to the original state. NOTE: Assumes
-            % that the function handle didn't change the warn state
-            cObj = onCleanup(@() warning(s));
+            % WarningCapture silences warnings, sets a sentinel via
+            % lastwarn, and restores the prior warning state on delete.
+            captor = statusMgr.util.WarningCapture();
 
-            warning("off");
-            warning(statusMgr.util.uuid, statusMgr.util.uuid);
-            [w0, c0] = lastwarn;
-
-            % Run the code in a try catch block to capture any errors
             try
-                fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", "Boundaries","inclusive");
-                [~, c]= obj.addStatus("Running", ...
-                    "Message", "Running: " + fcnCallStr); %#ok<ASGLU>
                 if nargout > 0
                     varargout = cell(1, nargout);
                     [varargout{:}] = fcnHandle(varargin{:});
@@ -355,14 +362,17 @@ classdef Stack < statusMgr.internal.StackInterface
                     fcnHandle(varargin{:});
                 end
             catch me
+                if ~nvp.CatchErrors
+                    rethrow(me);
+                end
                 obj.addError(me);
             end
 
-            % See if a warning was thrown by the function
-            [w1, c1] = lastwarn;
-            if (~strcmp(w0, w1) || ~strcmp(c0, c1)) ...
-                    && ~strcmp(c1, "MATLAB:callback:error") % Remove "errors" inside callback
-                obj.addStatus("Warning", "Message", w1);
+            if nvp.CatchWarnings
+                [warningMsg, ~] = captor.warning();
+                if warningMsg ~= ""
+                    obj.addStatus("Warning", "Message", warningMsg);
+                end
             end
 
         end

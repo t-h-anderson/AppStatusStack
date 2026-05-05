@@ -451,6 +451,29 @@ classdef tStack < matlab.unittest.TestCase
             testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
+        function tRunCatchErrorsFalseRethrows(testCase)
+            % With CatchErrors=false, errors raised inside fcn propagate
+            % to the caller instead of being captured as an Error status.
+            % The Running status is still cleaned up on the way out via
+            % its onCleanup, so the stack returns to Idle.
+            S = statusMgr.Stack();
+
+            testCase.verifyError( ...
+                @() S.run(@() error("test:err", "boom"), CatchErrors=false), ...
+                "test:err")
+            testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Idle)
+        end
+
+        function tRunCatchWarningsFalseSkipsWarningStatus(testCase)
+            % With CatchWarnings=false, warnings raised inside fcn do not
+            % become Warning statuses on the stack.
+            S = statusMgr.Stack();
+
+            S.run(@() warning("test:w", "hi"), CatchWarnings=false);
+
+            testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Idle)
+        end
+
         function tRemoveStatusFromMultipleStacks(testCase)
             % removeStatus on a stack array removes the status from every stack.
             S1 = statusMgr.Stack();
