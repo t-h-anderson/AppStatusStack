@@ -377,11 +377,10 @@ classdef tPopupView < matlab.uitest.TestCase
 
         function tHandleInputRequestShowsDialogAndReturnsTypedValue(testCase)
             % requestInput creates an input dialog; submitting it returns
-            % the typed value. We drive the dialog programmatically via
-            % the widget handles exposed on the view — findall(0, ...) is
-            % unreliable for modal uifigures, which is why a previous
-            % version of this test surfaced an interactive dialog instead
-            % of automating it.
+            % the typed value. requestInput blocks until the dialog is
+            % dismissed, so we poll from a timer callback and drive the
+            % dialog using the matlab.uitest.TestCase actions (type/press)
+            % once the view has published its widget handles.
             typedValue = "hello world";
             view = testCase.PopupView;
 
@@ -398,23 +397,20 @@ classdef tPopupView < matlab.uitest.TestCase
                 statusMgr.StatusType.Idle)
 
             function typeAndSubmit()
-                % Poll until the view has wired up the dialog widgets,
-                % then set the field and invoke the OK callback. The
-                % timer is stopped on first successful submission.
                 if isempty(view.InputDialog) || ~isvalid(view.InputDialog)
                     return
                 end
-                view.InputField.Value = typedValue;
-                cb = view.InputOkButton.ButtonPushedFcn;
-                cb(view.InputOkButton, []);
+                testCase.type(view.InputField, typedValue);
+                testCase.press(view.InputOkButton);
                 stop(t);
             end
         end
 
         function tHandleInputRequestDefaultUsedWhenDialogClosed(testCase)
-            % Closing the dialog (without OK) returns the default. Drives
-            % the close handler directly so the test never blocks waiting
-            % for a user.
+            % Closing the dialog (without OK) returns the default. The
+            % uitest framework doesn't have a "close window" gesture, so
+            % we invoke the figure's CloseRequestFcn directly — that is
+            % the same handler the window-close button would trigger.
             view = testCase.PopupView;
 
             t = timer("ExecutionMode", "fixedSpacing", "Period", 0.05, ...
@@ -457,8 +453,7 @@ classdef tPopupView < matlab.uitest.TestCase
                 if isempty(view.InputDialog) || ~isvalid(view.InputDialog)
                     return
                 end
-                cb = view.InputOkButton.ButtonPushedFcn;
-                cb(view.InputOkButton, []);
+                testCase.press(view.InputOkButton);
                 stop(t);
             end
         end
