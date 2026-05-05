@@ -1,9 +1,7 @@
-classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
+classdef CommandWindow < statusMgr.internal.view.StatusViewBase
     %CommandWindow View a status Stack in the command window
 
     properties (SetAccess = protected)
-        Stack = statusMgr.Stack.empty(1,0)
-        StackListener
         RunningTimer timer
     end
 

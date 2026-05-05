@@ -1,4 +1,4 @@
-classdef Popup < statusMgr.internal.view.StatusViewInterface
+classdef Popup < statusMgr.internal.view.StatusViewBase
     %StatusVIEW View a status Stack
 
     properties
@@ -6,8 +6,6 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
     end
 
     properties (SetAccess = protected)
-        Stack = statusMgr.Stack.empty(1,0)
-        StackListener 
         CancelListener event.listener
         CancelTimer timer % Due to know bug - see below
     end

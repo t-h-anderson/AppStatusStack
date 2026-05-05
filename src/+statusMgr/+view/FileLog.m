@@ -1,10 +1,5 @@
-classdef FileLog < statusMgr.internal.view.StatusViewInterface
+classdef FileLog < statusMgr.internal.view.StatusViewBase
     %FILELOG Print out statuses to file
-
-    properties (SetAccess = protected)
-        Stack = statusMgr.Stack.empty(1,0)
-        StackListener
-    end
 
     properties
         IncludeTimestamp (1,1) logical = true
