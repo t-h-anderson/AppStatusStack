@@ -351,6 +351,65 @@ classdef Stack < statusMgr.internal.StackInterface
 
         end
 
+        function varargout = runCancellable(obj, fcnHandle, varargin, nvp)
+            % Like run(), but pushes a RunningCancellable status and
+            % passes a CancellationToken as the FIRST argument to
+            % fcnHandle. A cancel-aware view (e.g. Popup) flips the
+            % token's IsCancelled when the user clicks Cancel; user
+            % code is expected to poll the token and bail out.
+            %
+            %   stack.runCancellable(@(token) work(token));
+            %   stack.runCancellable(@(token, x) work(token, x), 42);
+            %
+            % Otherwise behaves identically to run() — same name-value
+            % flags, same warning capture, same status cleanup.
+            arguments
+                obj (1,1) statusMgr.Stack
+                fcnHandle (1,1) function_handle
+            end
+            arguments (Repeating)
+                varargin
+            end
+            arguments
+                nvp.CatchErrors (1,1) logical = true
+                nvp.CatchWarnings (1,1) logical = true
+            end
+
+            token = statusMgr.CancellationToken();
+
+            fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", ...
+                "Boundaries", "inclusive");
+            % The token rides on the status's Data slot so cancel-aware
+            % views can find it without needing a second channel.
+            [~, statusCleanup] = obj.addStatus("RunningCancellable", ...
+                "Message", "Running: " + fcnCallStr, ...
+                "Data", token); %#ok<ASGLU>
+
+            captor = statusMgr.util.WarningCapture();
+
+            try
+                if nargout > 0
+                    varargout = cell(1, nargout);
+                    [varargout{:}] = fcnHandle(token, varargin{:});
+                else
+                    fcnHandle(token, varargin{:});
+                end
+            catch me
+                if ~nvp.CatchErrors
+                    rethrow(me);
+                end
+                obj.addError(me);
+            end
+
+            if nvp.CatchWarnings
+                [warningMsg, ~] = captor.warning();
+                if warningMsg ~= ""
+                    obj.addStatus("Warning", "Message", warningMsg);
+                end
+            end
+
+        end
+
     end
 
     methods % User input
@@ -411,6 +470,17 @@ classdef Stack < statusMgr.internal.StackInterface
     methods % Suppression
 
         function suppressIdentifier(obj, id)
+            % Hide statuses whose Identifier matches `id`.
+            %
+            %   stack.suppressIdentifier("myapp:network:timeout")
+            %   stack.suppressIdentifier("myapp:network:*")  % glob
+            %   stack.suppressIdentifier("*:timeout")
+            %
+            % `id` is matched against each new status's Identifier as
+            % a glob: `*` matches any run of characters (including
+            % none); other characters match literally. A status with
+            % a matching identifier is added to the stack with
+            % IsVisible=false so views skip displaying it.
             arguments
                 obj (1,1) statusMgr.Stack
                 id (1,1) string
@@ -421,11 +491,33 @@ classdef Stack < statusMgr.internal.StackInterface
         end
 
         function unsuppressIdentifier(obj, id)
+            % Remove an exact `id` from the suppression list. The
+            % string must match a previously-added entry exactly
+            % (including any wildcards).
             arguments
                 obj (1,1) statusMgr.Stack
                 id (1,1) string
             end
             obj.SuppressedIdentifiers(obj.SuppressedIdentifiers == id) = [];
+        end
+
+        function tf = isIdentifierSuppressed(obj, identifier)
+            % True if `identifier` matches any entry in
+            % SuppressedIdentifiers (treating each entry as a glob).
+            arguments
+                obj (1,1) statusMgr.Stack
+                identifier (1,1) string
+            end
+            tf = false;
+            if identifier == "" || isempty(obj.SuppressedIdentifiers)
+                return
+            end
+            for sup = obj.SuppressedIdentifiers
+                if statusMgr.Stack.globMatches(identifier, sup)
+                    tf = true;
+                    return
+                end
+            end
         end
 
     end
@@ -445,13 +537,21 @@ classdef Stack < statusMgr.internal.StackInterface
 
         function appendStatus(obj, newStatus)
 
-            % Remove previous status if temporary
-            while obj.CurrentStatus.IsTemporary
+            % Pop any temporary statuses currently on top of the stack.
+            % Cap iterations at the stack depth: we can never need to
+            % pop more entries than exist, and the cap is a safety net
+            % against an invariant violation (e.g. if the default Idle
+            % were ever marked IsTemporary by a future change, this
+            % loop would otherwise spin forever).
+            for i = 1:numel(obj.Statuses)
+                if ~obj.CurrentStatus.IsTemporary
+                    break
+                end
                 obj.removeLastStatus(Silent=true);
             end
 
-            % Hide status if its identifier is suppressed
-            if newStatus.Identifier ~= "" && ismember(newStatus.Identifier, obj.SuppressedIdentifiers)
+            % Hide status if its identifier is suppressed.
+            if newStatus.Identifier ~= "" && obj.isIdentifierSuppressed(newStatus.Identifier)
                 newStatus.IsVisible = false;
             end
 
@@ -473,6 +573,21 @@ classdef Stack < statusMgr.internal.StackInterface
     end
 
     methods (Static, Access = private)
+
+        function tf = globMatches(identifier, glob)
+            % Glob match: `*` is any-run-of-characters; other chars
+            % match literally. No `*` in `glob` means an exact match.
+            if ~contains(glob, "*")
+                tf = identifier == glob;
+                return
+            end
+            parts = split(glob, "*");
+            p = parts(1);
+            for i = 2:numel(parts)
+                p = p + wildcardPattern + parts(i);
+            end
+            tf = matches(identifier, p);
+        end
 
         function resolveOnTimeout(weakStatus, defaultValue)
             % requestInput timeout handler. Resolves with the default

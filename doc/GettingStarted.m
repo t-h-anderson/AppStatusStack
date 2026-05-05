@@ -97,6 +97,33 @@ myStack.run(@() error("hello world error")); %[output:0b046aa0]
 % Warning
 myStack.run(@() warning("mywarn:test","hello world warning")); %[output:0446e47d]
 
+% Skip auto-capture and rethrow / silently ignore instead
+% myStack.run(@() error("boom"), CatchErrors=false);
+% myStack.run(@() warning("test:w","ignored"), CatchWarnings=false);
+%%
+%[text] ## Cooperative cancellation
+%[text] runCancellable wraps a function with a RunningCancellable status and passes a CancellationToken as the first argument. A cancel-aware view (e.g. the Popup progress dialog Cancel button) flips the token; user code is expected to poll it and exit gracefully. Use throwIfCancellationRequested to raise statusMgr:cancelled if you prefer error-style propagation.
+% myStack.runCancellable(@(token) doSlowWork(token));
+%
+% function doSlowWork(token)
+%     for i = 1:100
+%         if token.IsCancellationRequested(); return; end
+%         pause(0.05);
+%     end
+% end
+%%
+%[text] ## Suppressing identifiers
+%[text] Suppress noisy statuses by identifier. Glob patterns (`*`) match across colons, so namespace-prefixed identifiers are easy to filter:
+% myStack.suppressIdentifier("myapp:network:*")  % everything under myapp:network
+% myStack.suppressIdentifier("*timeout*")        % anything mentioning timeout
+% myStack.unsuppressIdentifier("myapp:network:*") % must match the entry exactly
+%%
+%[text] ## Recording history
+%[text] RecordingView is a non-rendering view that appends every status it receives into RecordedStatuses. Useful for activity-log panels in apps, and for tests that want to assert on what was published rather than poking at internal stack state.
+% recorder = statusMgr.view.RecordingView(myStack);
+% myStack.addStatus("Info", Message="hello");
+% recorder.RecordedStatuses(end).Message  % "hello"
+% recorder.clear();  % drop the captured history
 %[appendix]{"version":"1.0"}
 %---
 %[metadata:view]
