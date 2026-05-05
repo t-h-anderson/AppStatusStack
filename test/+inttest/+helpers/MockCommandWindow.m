@@ -7,7 +7,7 @@ classdef MockCommandWindow < statusMgr.view.CommandWindow
         Responses (1,:) string = string.empty(1,0)
     end
 
-    methods
+    methods (Access = protected)
         function raw = readUserInput(obj, ~)
             if isempty(obj.Responses)
                 raw = "";
