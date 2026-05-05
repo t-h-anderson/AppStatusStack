@@ -140,12 +140,18 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
             if prompt == "", prompt = "Enter value"; end
             defaultVal = string(status.Data);
 
-            raw = string(input(prompt + ": ", "s"));
+            raw = obj.readUserInput(prompt + ": ");
             if raw == ""
                 raw = defaultVal;
             end
 
             status.transitionInputState(statusMgr.StatusType.ValueSupplied, raw);
+        end
+
+        function raw = readUserInput(~, prompt)
+            % Read a single line from stdin. Extracted as a seam so tests
+            % can subclass and override without monkey-patching `input`.
+            raw = string(input(prompt, "s"));
         end
 
         function writeToTerminal(obj, message, id)

@@ -359,6 +359,15 @@ classdef tStack < matlab.unittest.TestCase
 
         % --- requestInput ---------------------------------------------------
 
+        function tRequestInputNoArgsUsesEmptyPromptAndDefaults(testCase)
+            % Calling requestInput() with no arguments applies the prompt,
+            % DefaultValue, Title, and Timeout defaults.
+            S = statusMgr.Stack();
+            value = S.requestInput();
+
+            testCase.verifyEqual(value, "")
+        end
+
         function tRequestInputReturnsDefaultWhenNoViewAttached(testCase)
             % With no views listening, requestInput returns DefaultValue
             % once the timeout elapses.
@@ -456,6 +465,46 @@ classdef tStack < matlab.unittest.TestCase
             testCase.verifySize(S2.Statuses, [1 1])
             testCase.verifyEqual(S2.CurrentStatus.Type, statusMgr.StatusType.Idle)
             testCase.verifyTrue(status.IsComplete)
+        end
+
+        function tAddStatusCleanupObjFalseReturnsOnCleanupType(testCase)
+            % When CreateCleanupObj=false, the second output is an empty
+            % onCleanup (consistent with the empty-stack branch), not a cell.
+            S = statusMgr.Stack();
+            [~, cleanupObj] = S.addStatus("Warning", CreateCleanupObj=false);
+
+            testCase.verifyClass(cleanupObj, "onCleanup")
+            testCase.verifyEmpty(cleanupObj)
+        end
+
+        function tStackDeleteCleansUpMonitorableListeners(testCase)
+            % Stack.delete must dispose of StackMonitorableListeners as well
+            % as StatusListeners; otherwise monitorable listeners leak.
+            S = statusMgr.Stack();
+            obj = statusMgr.demo.Monitorable;
+            S.monitor(obj);
+
+            listeners = S.StackMonitorableListeners;
+            testCase.assertNotEmpty(listeners)
+            testCase.assertTrue(all(isvalid(listeners)))
+
+            delete(S);
+
+            testCase.verifyFalse(any(isvalid(listeners)))
+        end
+
+        function tStackDeleteCleansUpStatusListeners(testCase)
+            % Companion check for the existing StatusListeners cleanup.
+            S = statusMgr.Stack();
+            S.addStatus("Running");
+
+            listeners = S.StatusListeners;
+            testCase.assertNotEmpty(listeners)
+            testCase.assertTrue(all(isvalid(listeners)))
+
+            delete(S);
+
+            testCase.verifyFalse(any(isvalid(listeners)))
         end
 
         function tRequestInputStatusPushedWithCorrectProperties(testCase)

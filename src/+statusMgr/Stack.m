@@ -30,6 +30,7 @@ classdef Stack < statusMgr.internal.StackInterface
 
         function delete(obj)
             delete(obj.StatusListeners);
+            delete(obj.StackMonitorableListeners);
         end
     end
 
@@ -149,7 +150,7 @@ classdef Stack < statusMgr.internal.StackInterface
                 removeStatusFn = @() objs.removeStatus(newStatus);
                 cleanupObj = onCleanup(removeStatusFn);
             else
-                cleanupObj = {};
+                cleanupObj = onCleanup.empty(1,0);
             end
 
             % Notify that the status has changed
@@ -219,11 +220,9 @@ classdef Stack < statusMgr.internal.StackInterface
                 obj = objs;
             end
 
-            % If no current status, nothing to update
+            % obj.CurrentStatus is guaranteed non-empty by get.Statuses
+            % (which restores an Idle default if the array is ever cleared).
             currentStatus = obj.CurrentStatus;
-            if isempty(currentStatus)
-                return
-            end
 
             if currentStatus.ID == status.ID
                 % Quickest to just update the current status

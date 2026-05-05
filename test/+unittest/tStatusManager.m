@@ -259,6 +259,96 @@ classdef tStatusManager < matlab.unittest.TestCase
             testCase.verifyEqual(smg.Stack.CurrentStatus.Message, "hello")
         end
 
+        % --- snapshot / restore ---------------------------------------------
+
+        function tSnapshotCapturesExistingInstance(testCase)
+            % snapshot() taken with a live singleton records hasInstance=true
+            % and the current Groups dictionary.
+            statusMgr.util.StatusManager.make("X");
+
+            token = statusMgr.util.StatusManager.snapshot();
+
+            testCase.verifyTrue(token.hasInstance)
+            testCase.assertClass(token.instance, 'statusMgr.util.StatusManager')
+            testCase.verifyTrue(isKey(token.groups, "X"))
+        end
+
+        function tRestoreReinstatesPreviousGroupsDict(testCase)
+            % Modifying groups after a snapshot, then restoring, returns the
+            % singleton to the snapshotted state — exercises the "instance
+            % still valid" branch of restore().
+            statusMgr.util.StatusManager.make("Original");
+            token = statusMgr.util.StatusManager.snapshot();
+
+            statusMgr.util.StatusManager.make("AddedAfter");
+            testCase.assertClass( ...
+                statusMgr.util.StatusManager.get("AddedAfter"), 'statusMgr.Stack')
+
+            statusMgr.util.StatusManager.restore(token);
+
+            testCase.assertClass( ...
+                statusMgr.util.StatusManager.get("Original"), 'statusMgr.Stack')
+            testCase.verifyError( ...
+                @() statusMgr.util.StatusManager.get("AddedAfter"), ...
+                'statusMgr:StatusManager:unknownGroup')
+        end
+
+        function tRestoreFallsBackWhenInstanceInvalid(testCase)
+            % If the snapshotted instance has been deleted, restore() clears
+            % the persistent and a fresh singleton is created on next access.
+            statusMgr.util.StatusManager.make();
+            token = statusMgr.util.StatusManager.snapshot();
+
+            % Forcefully delete the snapshotted singleton.
+            delete(token.instance);
+            testCase.assertFalse(isvalid(token.instance))
+
+            statusMgr.util.StatusManager.restore(token);
+
+            % A fresh instance is created on next access.
+            stack = statusMgr.util.StatusManager.get();
+            testCase.assertClass(stack, 'statusMgr.Stack')
+        end
+
+        % --- addPopup -------------------------------------------------------
+
+        function tAddPopup(testCase)
+            % addPopup() attaches a Popup view to a named group.
+            fig = uifigure;
+            testCase.addTeardown(@() delete(fig))
+
+            statusMgr.util.StatusManager.make("MyGroup");
+            statusMgr.util.StatusManager.addPopup("MyGroup", Parent=fig);
+
+            views = statusMgr.util.StatusManager.get("MyGroup", Type="Views");
+            testCase.assertSize(views, [1 1])
+            testCase.assertClass(views(1), 'statusMgr.view.Popup')
+        end
+
+        function tAddPopupNoArgsUsesDefaultGroupAndParent(testCase)
+            % addPopup() with no arguments operates on the Default group
+            % and applies the empty Parent default.
+            statusMgr.util.StatusManager.addPopup();
+
+            views = statusMgr.util.StatusManager.get(Type="Views");
+            testCase.assertSize(views, [1 1])
+            testCase.assertClass(views(1), 'statusMgr.view.Popup')
+            testCase.addTeardown(@() delete(views(1)))
+        end
+
+        function tMakeWithPopupParent(testCase)
+            % make(PopupParent=fig) attaches a Popup to the group on
+            % first creation. Covers the PopupParent branch in make().
+            fig = uifigure;
+            testCase.addTeardown(@() delete(fig))
+
+            statusMgr.util.StatusManager.make("MyGroup", PopupParent=fig);
+
+            views = statusMgr.util.StatusManager.get("MyGroup", Type="Views");
+            testCase.assertSize(views, [1 1])
+            testCase.assertClass(views(1), 'statusMgr.view.Popup')
+        end
+
     end
 
 end

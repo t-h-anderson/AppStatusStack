@@ -29,6 +29,63 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyFalse(testCase.PopupView.ShowIdle)
         end
 
+        function tDefaultConstructorCreatesUifigureAndStack(testCase)
+            % statusMgr.view.Popup() with no args defaults parent to a
+            % fresh uifigure and stack to a new Stack. Exercises the
+            % `parent = uifigure` and `stack = statusMgr.Stack` defaults.
+            view = statusMgr.view.Popup();
+            testCase.addTeardown(@() delete(view.Parent))
+            testCase.addTeardown(@() delete(view))
+
+            testCase.assertClass(view.Parent, "matlab.ui.Figure")
+            testCase.verifyTrue(isvalid(view.Parent))
+            testCase.assertClass(view.Stack, "statusMgr.Stack")
+        end
+
+        function tDisplayRunningDefaultCancellableArg(testCase)
+            % Calling displayRunning with only the status argument applies
+            % the cancellable=false default. Use a private fixture stack
+            % so this view is the only listener.
+            fig = figure(Position=[1 1 400 200]);
+            testCase.addTeardown(@() delete(fig))
+            stack = statusMgr.Stack();
+            view = inttest.helpers.PopupAccess(fig, stack);
+            testCase.addTeardown(@() delete(view))
+
+            status = statusMgr.Status("Running", "x");
+            testCase.verifyWarningFree(@() view.callDisplayRunningNoCancellable(status));
+        end
+
+        function tPopupAlertDefaultTitleAndIcon(testCase)
+            % popupAlert(status) without title/icon applies the
+            % "Error"/"error" defaults. Use a private fixture stack so
+            % only this view's uiconfirm dialog is produced, then dismiss.
+            fig = figure(Position=[1 1 400 200]);
+            testCase.addTeardown(@() delete(fig))
+            stack = statusMgr.Stack();
+            view = inttest.helpers.PopupAccess(fig, stack);
+            testCase.addTeardown(@() delete(view))
+
+            status = statusMgr.Status("Error", "m");
+            view.callPopupAlertDefaults(status);
+            testCase.chooseDialog("uiconfirm", fig, "OK")
+        end
+
+        function tProgressDlgIndeterminateAfterDeterminate(testCase)
+            % Switching a status from a determinate Value back to NaN
+            % flips ProgressDlg.Indeterminate from "off" to "on". Covers
+            % the else branch in updateProgressDlg.
+            status = testCase.Stack.addStatus("Running", Message="r1", Value=0.4);
+            pause(0.2)
+            testCase.assertEqual(testCase.PopupView.ProgressDlg.Indeterminate, 'off')
+
+            testCase.Stack.updateStatus(status, Value=NaN);
+            % updateStatus on the current status notifies StatusUpdated,
+            % which re-runs the view; the indeterminate path is taken.
+            pause(0.2)
+            testCase.verifyEqual(testCase.PopupView.ProgressDlg.Indeterminate, 'on')
+        end
+
         function tDismissError(testCase)
             % Dismiss the error dialog and check the stack is
             % updated accordingly.
@@ -376,12 +433,17 @@ classdef tPopupView < matlab.uitest.TestCase
         end
 
         function tHandleInputRequestShowsDialogAndReturnsTypedValue(testCase)
-            % requestInput creates an input dialog; submitting it returns the
-            % typed value. The timer simulates a user typing and clicking OK.
+            % requestInput creates an input dialog; submitting it returns
+            % the typed value. requestInput blocks until the dialog is
+            % dismissed, so we poll from a timer callback and drive the
+            % dialog using the matlab.uitest.TestCase actions (type/press)
+            % once the view has published its widget handles.
             typedValue = "hello world";
+            view = testCase.PopupView;
 
-            t = timer("StartDelay", 0.3, "TimerFcn", @(~,~) typeAndSubmit());
-            testCase.addTeardown(@() delete(t));
+            t = timer("ExecutionMode", "fixedSpacing", "Period", 0.05, ...
+                "TimerFcn", @(~,~) typeAndSubmit());
+            testCase.addTeardown(@() statusMgr.util.stopTimer(t));
             start(t);
 
             value = testCase.Stack.requestInput("Enter something", ...
@@ -392,27 +454,25 @@ classdef tPopupView < matlab.uitest.TestCase
                 statusMgr.StatusType.Idle)
 
             function typeAndSubmit()
-                % Find the input dialog uifigure and submit it.
-                figs = findall(0, "Type", "figure", "Name", "Test Input");
-                if isempty(figs)
+                if isempty(view.InputDialog) || ~isvalid(view.InputDialog)
                     return
                 end
-                f = figs(1);
-                fields = findall(f, "Type", "uieditfield");
-                if ~isempty(fields)
-                    fields(1).Value = typedValue;
-                end
-                btns = findall(f, "Type", "uibutton", "Text", "OK");
-                if ~isempty(btns)
-                    btns(1).ButtonPushedFcn(btns(1), []);
-                end
+                testCase.type(view.InputField, typedValue);
+                testCase.press(view.InputOkButton);
+                stop(t);
             end
         end
 
         function tHandleInputRequestDefaultUsedWhenDialogClosed(testCase)
-            % Closing the dialog without clicking OK returns the default.
-            t = timer("StartDelay", 0.3, "TimerFcn", @(~,~) closeDialog());
-            testCase.addTeardown(@() delete(t));
+            % Closing the dialog (without OK) returns the default. The
+            % uitest framework doesn't have a "close window" gesture, so
+            % we invoke the figure's CloseRequestFcn directly — that is
+            % the same handler the window-close button would trigger.
+            view = testCase.PopupView;
+
+            t = timer("ExecutionMode", "fixedSpacing", "Period", 0.05, ...
+                "TimerFcn", @(~,~) closeDialog());
+            testCase.addTeardown(@() statusMgr.util.stopTimer(t));
             start(t);
 
             value = testCase.Stack.requestInput("Enter something", ...
@@ -421,17 +481,22 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyEqual(value, "fallback")
 
             function closeDialog()
-                figs = findall(0, "Type", "figure", "Name", "Close Test");
-                if ~isempty(figs)
-                    figs(1).CloseRequestFcn(figs(1), []);
+                if isempty(view.InputDialog) || ~isvalid(view.InputDialog)
+                    return
                 end
+                cb = view.InputDialog.CloseRequestFcn;
+                cb(view.InputDialog, []);
+                stop(t);
             end
         end
 
         function tHandleInputRequestStatusCleanedUp(testCase)
             % Stack returns to Idle after requestInput completes.
-            t = timer("StartDelay", 0.2, "TimerFcn", @(~,~) submitDefault());
-            testCase.addTeardown(@() delete(t));
+            view = testCase.PopupView;
+
+            t = timer("ExecutionMode", "fixedSpacing", "Period", 0.05, ...
+                "TimerFcn", @(~,~) submitDefault());
+            testCase.addTeardown(@() statusMgr.util.stopTimer(t));
             start(t);
 
             testCase.Stack.requestInput("Prompt", ...
@@ -442,13 +507,11 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifySize(testCase.Stack.Statuses, [1 1])
 
             function submitDefault()
-                figs = findall(0, "Type", "figure", "Name", "Cleanup Test");
-                if ~isempty(figs)
-                    btns = findall(figs(1), "Type", "uibutton", "Text", "OK");
-                    if ~isempty(btns)
-                        btns(1).ButtonPushedFcn(btns(1), []);
-                    end
+                if isempty(view.InputDialog) || ~isvalid(view.InputDialog)
+                    return
                 end
+                testCase.press(view.InputOkButton);
+                stop(t);
             end
         end
 
