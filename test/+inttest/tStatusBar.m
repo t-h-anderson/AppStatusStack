@@ -29,6 +29,7 @@ classdef tStatusBar < matlab.uitest.TestCase
             testCase.verifyEqual(string(testCase.Bar.MessageLabel.Text), "hello")
             testCase.verifyEqual(string(testCase.Bar.ProgressIndicator.Visible), "off")
             testCase.verifyEqual(string(testCase.Bar.CancelButton.Visible), "off")
+            testCase.verifyEqual(string(testCase.Bar.DetailsButton.Visible), "off")
             testCase.verifyEqual(string(testCase.Bar.OkButton.Visible), "off")
         end
 
@@ -80,18 +81,20 @@ classdef tStatusBar < matlab.uitest.TestCase
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
-        function tErrorShowsOkButtonAndPopulatesPopout(testCase)
-            % Error/Warning/Success show the OK button and populate
-            % the click-triggered Popout with the full Message.
+        function tErrorShowsDetailsAndOkButtonsAndPopulatesPopout(testCase)
+            % Error/Warning/Success show the Details button (which
+            % toggles the Popout) and the OK button (which dismisses
+            % the alert). The Popout content is populated with the
+            % full Message.
             testCase.Stack.addStatus("Error", ...
                 Message="full error details here", ...
                 MessageShort="oops");
 
             testCase.verifyEqual(string(testCase.Bar.MessageLabel.Text), "oops")
+            testCase.verifyEqual(string(testCase.Bar.DetailsButton.Visible), "on")
             testCase.verifyEqual(string(testCase.Bar.OkButton.Visible), "on")
             testCase.verifyEqual(string(testCase.Bar.PopoutLabel.Text), ...
                 "full error details here")
-            testCase.verifyEqual(string(testCase.Bar.Popout.Trigger), "click")
         end
 
         function tWarningShowsOkButton(testCase)
@@ -117,14 +120,41 @@ classdef tStatusBar < matlab.uitest.TestCase
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
-        function tPopoutTriggerIsManualForNonAlertTypes(testCase)
-            % Info / Running / Idle disarm the click trigger so
-            % clicking the message label has no effect.
+        function tDetailsButtonHiddenForNonAlertTypes(testCase)
+            % Info / Running don't have Details to show, so the
+            % button is hidden — the popout has no UI affordance to
+            % open it.
             testCase.Stack.addStatus("Info", Message="just info");
-            testCase.verifyEqual(string(testCase.Bar.Popout.Trigger), "manual")
+            testCase.verifyEqual(string(testCase.Bar.DetailsButton.Visible), "off")
 
             testCase.Stack.addStatus("Running", Message="working");
-            testCase.verifyEqual(string(testCase.Bar.Popout.Trigger), "manual")
+            testCase.verifyEqual(string(testCase.Bar.DetailsButton.Visible), "off")
+        end
+
+        function tPopoutHasExplicitSize(testCase)
+            % The popout has an explicit Position so its size is
+            % predictable regardless of content. Default is 400x200;
+            % constructor accepts a PopoutSize override.
+            testCase.verifyEqual(testCase.Bar.Popout.Position(3:4), [400 200])
+
+            customBar = statusMgr.view.StatusBar(uifigure(), testCase.Stack, ...
+                PopoutSize=[600 300]);
+            testCase.addTeardown(@() delete(customBar.Parent));
+            testCase.addTeardown(@() delete(customBar));
+            testCase.verifyEqual(customBar.Popout.Position(3:4), [600 300])
+        end
+
+        function tDismissingAlertClosesOpenPopout(testCase)
+            % If the user opened the popout and then clicks OK to
+            % dismiss the alert, the popout shouldn't linger after
+            % the alert it was describing is gone.
+            testCase.Stack.addStatus("Error", Message="boom");
+            testCase.Bar.Popout.open();
+            testCase.assertTrue(testCase.Bar.Popout.IsOpen)
+
+            testCase.press(testCase.Bar.OkButton);
+
+            testCase.verifyFalse(testCase.Bar.Popout.IsOpen)
         end
 
         function tIdleClearsTheBar(testCase)

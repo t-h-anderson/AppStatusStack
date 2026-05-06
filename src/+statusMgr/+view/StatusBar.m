@@ -41,6 +41,7 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
         MessageLabel matlab.ui.control.Label = matlab.ui.control.Label.empty(1,0)
         ProgressIndicator = []  % matlab.ui.control.internal.ProgressIndicator
         CancelButton matlab.ui.control.Button = matlab.ui.control.Button.empty(1,0)
+        DetailsButton matlab.ui.control.Button = matlab.ui.control.Button.empty(1,0)
         OkButton matlab.ui.control.Button = matlab.ui.control.Button.empty(1,0)
         Popout = []           % matlab.ui.container.internal.Popout
         PopoutLabel matlab.ui.control.Label = matlab.ui.control.Label.empty(1,0)
@@ -51,6 +52,8 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
         WarningColor (1,3) double = [0.85 0.5 0]
         ErrorColor (1,3) double = [0.78 0 0]
         SuccessColor (1,3) double = [0 0.55 0]
+        % Width and height of the details Popout, in pixels.
+        PopoutSize (1,2) double {mustBePositive} = [400 200]
     end
 
     methods
@@ -63,6 +66,7 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
                 nvp.WarningColor (1,3) double = [0.85 0.5 0]
                 nvp.ErrorColor (1,3) double = [0.78 0 0]
                 nvp.SuccessColor (1,3) double = [0 0.55 0]
+                nvp.PopoutSize (1,2) double {mustBePositive} = [400 200]
                 nvp.ShowInfo (1,1) logical = true
                 nvp.ShowWarnings (1,1) logical = true
                 nvp.ShowErrors (1,1) logical = true
@@ -101,9 +105,9 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
         function buildUI(obj)
             % uigridlayout auto-resizes with its parent — that's why
             % we use it as the top-level child rather than a uipanel.
-            % Columns: message (flex), progress, cancel, ok.
-            obj.Layout = uigridlayout(obj.Parent, [1, 4], ...
-                "ColumnWidth", {"1x", 0, 0, 0}, ...
+            % Columns: message (flex), progress, cancel, details, ok.
+            obj.Layout = uigridlayout(obj.Parent, [1, 5], ...
+                "ColumnWidth", {"1x", 0, 0, 0, 0}, ...
                 "Padding", [6, 2, 6, 2], ...
                 "ColumnSpacing", 6, ...
                 "RowHeight", {"1x"});
@@ -122,23 +126,35 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
                 "ButtonPushedFcn", @(~,~) obj.onCancelClicked());
             obj.CancelButton.Layout.Column = 3;
 
+            % Details button: small, opens/closes the Popout that
+            % shows the full status.Message. Visible only when the
+            % current status has details worth showing (Error /
+            % Warning / Success).
+            obj.DetailsButton = uibutton(obj.Layout, ...
+                "Text", "...", ...
+                "Visible", "off");
+            obj.DetailsButton.Layout.Column = 4;
+
             obj.OkButton = uibutton(obj.Layout, ...
                 "Text", "OK", ...
                 "Visible", "off", ...
                 "ButtonPushedFcn", @(~,~) obj.onOkClicked());
-            obj.OkButton.Layout.Column = 4;
+            obj.OkButton.Layout.Column = 5;
 
-            % Popout for showing the full status.Message on click. The
-            % Trigger is toggled to "click"/"manual" by the display
-            % methods so it only fires when there's something to show.
+            % Popout for showing the full status.Message. Anchored to
+            % the Details button — Trigger="click" gives the user the
+            % standard open-on-click / click-outside-to-close
+            % behaviour. An explicit Position is required: without
+            % it the popout's preferred size depends on its content
+            % at construction time (which is empty here) and ends up
+            % too small for typical error reports.
             obj.Popout = matlab.ui.container.internal.Popout( ...
-                "Target", obj.MessageLabel, ...
-                "Trigger", "manual", ...
-                "Placement", "top");
+                "Target", obj.DetailsButton, ...
+                "Trigger", "click", ...
+                "Placement", "auto", ...
+                "Position", [0, 0, obj.PopoutSize(1), obj.PopoutSize(2)]);
             popoutGrid = uigridlayout(obj.Popout, [1, 1], ...
-                "Padding", [8, 8, 8, 8], ...
-                "RowHeight", {"fit"}, ...
-                "ColumnWidth", {"fit"});
+                "Padding", [8, 8, 8, 8]);
             obj.PopoutLabel = uilabel(popoutGrid, ...
                 "Text", "", ...
                 "WordWrap", "on");
@@ -167,8 +183,8 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             obj.MessageLabel.FontColor = color;
             obj.setProgress(progressVisible, progressValue);
             obj.setCancelVisible(cancelVisible);
+            obj.setDetails(popoutText);
             obj.setOkVisible(okVisible);
-            obj.setPopout(popoutText);
         end
 
         function setProgress(obj, visible, value)
@@ -200,25 +216,29 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
         function setOkVisible(obj, visible)
             if visible
                 obj.OkButton.Visible = "on";
-                obj.Layout.ColumnWidth{4} = 50;
+                obj.Layout.ColumnWidth{5} = 50;
             else
                 obj.OkButton.Visible = "off";
-                obj.Layout.ColumnWidth{4} = 0;
+                obj.Layout.ColumnWidth{5} = 0;
             end
         end
 
-        function setPopout(obj, text)
-            % When there's text to show, populate the popout and arm
-            % the click trigger; otherwise clear the content and
-            % disarm so clicking the message has no effect.
+        function setDetails(obj, text)
+            % Show the Details button (and populate the popout) when
+            % there's full text to show. Hiding the button removes
+            % the only way to open the popout from the UI; if the
+            % popout was open we close it explicitly so it doesn't
+            % linger after the alert is gone.
             obj.PopoutLabel.Text = text;
             if text == ""
-                obj.Popout.Trigger = "manual";
+                obj.DetailsButton.Visible = "off";
+                obj.Layout.ColumnWidth{4} = 0;
                 if obj.Popout.IsOpen
                     obj.Popout.close();
                 end
             else
-                obj.Popout.Trigger = "click";
+                obj.DetailsButton.Visible = "on";
+                obj.Layout.ColumnWidth{4} = 30;
             end
         end
 
