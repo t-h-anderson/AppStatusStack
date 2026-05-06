@@ -37,7 +37,14 @@ classdef RecordingView < statusMgr.internal.view.StatusViewBase
                 nvp.ShowRunning (1,1) logical = true
                 nvp.ShowSuccess (1,1) logical = true
                 nvp.ShowIdle (1,1) logical = false
-                nvp.HandleInputRequests (1,1) logical = false
+                % HandleInputRequests defaults to true on the recorder
+                % because the override below only records — it never
+                % claims (no transitionInputState call), so it's safe
+                % to fire even when other claim-capable views are also
+                % attached.
+                nvp.HandleInputRequests (1,1) logical = true
+                nvp.IncludeIdentifiers (1,:) string = string.empty(1,0)
+                nvp.ExcludeIdentifiers (1,:) string = string.empty(1,0)
             end
             obj.setStack(stack);
             set(obj, nvp);

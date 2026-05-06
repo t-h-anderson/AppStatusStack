@@ -47,6 +47,8 @@ classdef Popup < statusMgr.internal.view.StatusViewBase
                 nvp.ShowRunning (1,1) logical = true
                 nvp.ShowSuccess (1,1) logical = true
                 nvp.ShowIdle (1,1) logical = false
+                nvp.IncludeIdentifiers (1,:) string = string.empty(1,0)
+                nvp.ExcludeIdentifiers (1,:) string = string.empty(1,0)
             end
 
             % Set view parent and stack properties
