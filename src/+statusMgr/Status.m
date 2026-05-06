@@ -110,6 +110,29 @@ classdef Status < matlab.mixin.SetGet
             end
         end
 
+        function throwIfComplete(obj, identifier, message)
+            % Convenience for cancellable user code that prefers error-
+            % style propagation. Raises an MException if IsComplete is
+            % true. Default identifier mirrors the cancellation idiom:
+            %
+            %   stack.runCancellable(@(status) work(status));
+            %
+            %   function work(status)
+            %       for i = 1:N
+            %           status.throwIfComplete();   % bails out if cancelled
+            %           % ...
+            %       end
+            %   end
+            arguments
+                obj (1,1) statusMgr.Status
+                identifier (1,1) string = "statusMgr:cancelled"
+                message (1,1) string = "Operation was cancelled."
+            end
+            if obj.IsComplete
+                error(identifier, message);
+            end
+        end
+
         function complete(objs)
             idx = ~[objs.IsComplete];
             toComplete = (objs(idx));

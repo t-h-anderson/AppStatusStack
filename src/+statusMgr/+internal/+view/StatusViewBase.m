@@ -27,6 +27,19 @@ classdef (Abstract) StatusViewBase < ...
         ShowSuccess (1,1) logical = true
         ShowIdle (1,1) logical = false
         HandleInputRequests (1,1) logical = true
+
+        % Per-view identifier filters (glob patterns). Complement the
+        % stack-level SuppressedIdentifiers: stack-level hides for
+        % everyone; these let one view be more permissive or more
+        % restrictive than another.
+        %   IncludeIdentifiers — if non-empty, only statuses whose
+        %       Identifier matches at least one entry are displayed.
+        %       Statuses with no Identifier are NOT shown.
+        %   ExcludeIdentifiers — statuses whose Identifier matches
+        %       any entry are not displayed.
+        % Both lists accept globs (e.g. "myapp:net:*", "*timeout*").
+        IncludeIdentifiers (1,:) string = string.empty(1,0)
+        ExcludeIdentifiers (1,:) string = string.empty(1,0)
     end
 
     methods
@@ -47,6 +60,10 @@ classdef (Abstract) StatusViewBase < ...
             latestStatus = stack.CurrentStatus;
 
             if ~latestStatus.IsVisible
+                return
+            end
+
+            if ~obj.passesIdentifierFilters(latestStatus.Identifier)
                 return
             end
 
@@ -97,6 +114,34 @@ classdef (Abstract) StatusViewBase < ...
     end
 
     methods (Access = protected)
+
+        function tf = passesIdentifierFilters(obj, identifier)
+            % Apply IncludeIdentifiers + ExcludeIdentifiers globs.
+            % Identifier is the empty string for unidentified statuses.
+            if ~isempty(obj.IncludeIdentifiers)
+                tf = false;
+                if identifier == ""
+                    return
+                end
+                for inc = obj.IncludeIdentifiers
+                    if statusMgr.util.globMatches(identifier, inc)
+                        tf = true;
+                        break
+                    end
+                end
+                if ~tf
+                    return
+                end
+            end
+            for exc = obj.ExcludeIdentifiers
+                if identifier ~= "" && statusMgr.util.globMatches(identifier, exc)
+                    tf = false;
+                    return
+                end
+            end
+            tf = true;
+        end
+
         function displayInfo_(obj, status)
             if obj.ShowInfo
                 obj.displayInfo(status);

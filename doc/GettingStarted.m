@@ -107,7 +107,7 @@ myStack.run(@() warning("mywarn:test","hello world warning")); %[output:0446e47d
 %
 % function doSlowWork(status)
 %     for i = 1:100
-%         if status.IsComplete; return; end
+%         status.throwIfComplete();   % or: if status.IsComplete; return; end
 %         pause(0.05);
 %     end
 % end
@@ -124,6 +124,18 @@ myStack.run(@() warning("mywarn:test","hello world warning")); %[output:0446e47d
 % myStack.addStatus("Info", Message="hello");
 % recorder.RecordedStatuses(end).Message  % "hello"
 % recorder.clear();  % drop the captured history
+%%
+%[text] ## Per-view filters
+%[text] Every view supports IncludeIdentifiers / ExcludeIdentifiers glob lists. They complement the stack-level suppression: stack-level hides for everyone, view-level lets you tune visibility per view.
+% chatty = statusMgr.view.CommandWindow(myStack, ...
+%     IncludeIdentifiers=["myapp:debug:*"]);
+% audit = statusMgr.view.FileLog(myStack, ...
+%     ExcludeIdentifiers=["*:debug"]);
+%%
+%[text] ## Structured / rotating logs
+%[text] FileLog accepts a JSON-lines format and a byte-cap that rotates the log when it grows past MaxBytes. Rotation appends "_N" before the file extension, e.g. Log.txt → Log_1.txt → Log_2.txt.
+% statusMgr.view.FileLog(myStack, LogFolder=pwd, ...
+%     Format="json-lines", MaxBytes=1e6);
 %[appendix]{"version":"1.0"}
 %---
 %[metadata:view]

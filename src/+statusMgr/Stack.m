@@ -319,36 +319,9 @@ classdef Stack < statusMgr.internal.StackInterface
                 nvp.CatchWarnings (1,1) logical = true
             end
 
-            fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", ...
-                "Boundaries", "inclusive");
-            [~, statusCleanup] = obj.addStatus("Running", ...
-                "Message", "Running: " + fcnCallStr); %#ok<ASGLU>
-
-            % WarningCapture silences warnings, sets a sentinel via
-            % lastwarn, and restores the prior warning state on delete.
-            captor = statusMgr.util.WarningCapture();
-
-            try
-                if nargout > 0
-                    varargout = cell(1, nargout);
-                    [varargout{:}] = fcnHandle(varargin{:});
-                else
-                    fcnHandle(varargin{:});
-                end
-            catch me
-                if ~nvp.CatchErrors
-                    rethrow(me);
-                end
-                obj.addError(me);
-            end
-
-            if nvp.CatchWarnings
-                [warningMsg, ~] = captor.warning();
-                if warningMsg ~= ""
-                    obj.addStatus("Warning", "Message", warningMsg);
-                end
-            end
-
+            varargout = cell(1, nargout);
+            [varargout{:}] = obj.runWithStatus("Running", false, ...
+                fcnHandle, varargin, nvp.CatchErrors, nvp.CatchWarnings);
         end
 
         function varargout = runCancellable(obj, fcnHandle, varargin, nvp)
@@ -370,10 +343,10 @@ classdef Stack < statusMgr.internal.StackInterface
             %
             % While the function is running, status.IsComplete=true
             % unambiguously means "cancel requested" — the natural-
-            % completion path (the onCleanup created here) fires only
-            % after fcnHandle returns. Otherwise behaves identically
-            % to run() — same name-value flags, same warning capture,
-            % same status cleanup.
+            % completion path (the onCleanup created internally) fires
+            % only after fcnHandle returns. Otherwise behaves
+            % identically to run() — same name-value flags, same
+            % warning capture, same status cleanup.
             arguments
                 obj (1,1) statusMgr.Stack
                 fcnHandle (1,1) function_handle
@@ -386,34 +359,58 @@ classdef Stack < statusMgr.internal.StackInterface
                 nvp.CatchWarnings (1,1) logical = true
             end
 
+            varargout = cell(1, nargout);
+            [varargout{:}] = obj.runWithStatus("RunningCancellable", true, ...
+                fcnHandle, varargin, nvp.CatchErrors, nvp.CatchWarnings);
+        end
+
+    end
+
+    methods (Access = protected)
+
+        function varargout = runWithStatus(obj, statusType, passStatusFirst, ...
+                fcnHandle, fcnArgs, catchErrors, catchWarnings)
+            % Shared body of run() and runCancellable(): push a status,
+            % run fcnHandle, capture errors/warnings, clean up.
+            %   statusType        - StatusType to push for the duration
+            %   passStatusFirst   - true to inject the Status as the
+            %                       first arg to fcnHandle (cancellable
+            %                       work uses this to read IsComplete)
+            %   fcnArgs (cell)    - positional args from the caller
+
             fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", ...
                 "Boundaries", "inclusive");
-            [status, statusCleanup] = obj.addStatus("RunningCancellable", ...
+            [status, statusCleanup] = obj.addStatus(statusType, ...
                 "Message", "Running: " + fcnCallStr); %#ok<ASGLU>
 
+            % WarningCapture silences warnings, sets a sentinel via
+            % lastwarn, and restores the prior warning state on delete.
             captor = statusMgr.util.WarningCapture();
+
+            if passStatusFirst
+                fcnArgs = [{status}, fcnArgs];
+            end
 
             try
                 if nargout > 0
                     varargout = cell(1, nargout);
-                    [varargout{:}] = fcnHandle(status, varargin{:});
+                    [varargout{:}] = fcnHandle(fcnArgs{:});
                 else
-                    fcnHandle(status, varargin{:});
+                    fcnHandle(fcnArgs{:});
                 end
             catch me
-                if ~nvp.CatchErrors
+                if ~catchErrors
                     rethrow(me);
                 end
                 obj.addError(me);
             end
 
-            if nvp.CatchWarnings
+            if catchWarnings
                 [warningMsg, ~] = captor.warning();
                 if warningMsg ~= ""
                     obj.addStatus("Warning", "Message", warningMsg);
                 end
             end
-
         end
 
     end
@@ -519,7 +516,7 @@ classdef Stack < statusMgr.internal.StackInterface
                 return
             end
             for sup = obj.SuppressedIdentifiers
-                if statusMgr.Stack.globMatches(identifier, sup)
+                if statusMgr.util.globMatches(identifier, sup)
                     tf = true;
                     return
                 end
@@ -579,21 +576,6 @@ classdef Stack < statusMgr.internal.StackInterface
     end
 
     methods (Static, Access = private)
-
-        function tf = globMatches(identifier, glob)
-            % Glob match: `*` is any-run-of-characters; other chars
-            % match literally. No `*` in `glob` means an exact match.
-            if ~contains(glob, "*")
-                tf = identifier == glob;
-                return
-            end
-            parts = split(glob, "*");
-            p = parts(1);
-            for i = 2:numel(parts)
-                p = p + wildcardPattern + parts(i);
-            end
-            tf = matches(identifier, p);
-        end
 
         function resolveOnTimeout(weakStatus, defaultValue)
             % requestInput timeout handler. Resolves with the default
