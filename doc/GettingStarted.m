@@ -22,6 +22,8 @@ f = uifigure("Visible","on");
 myStateView = statusMgr.view.Popup(f, myStack);
 %%
 commandLineView = statusMgr.view.CommandWindow(myStack);
+%[text] Or render an inline non-modal status bar pinned to the bottom of a uifigure (color-coded message + optional progress + Cancel button for RunningCancellable):
+% statusBar = statusMgr.view.StatusBar(f, myStack);
 %%
 %[text] ## Adding a status
 %[text] To add a status, use the addStatus method of StatusStack. There are two possible ways to call the method:
