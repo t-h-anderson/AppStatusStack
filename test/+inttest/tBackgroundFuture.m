@@ -133,6 +133,13 @@ classdef tBackgroundFuture < matlab.unittest.TestCase
                 ProgressQueue=queue);
             testCase.addTeardown(@() cancel(future));
 
+            % Wait for the progress message to actually land in the
+            % status BEFORE waiting for completion. Once the future
+            % finishes the poll timer marks status.IsComplete, after
+            % which onProgressFromWorker early-returns and any
+            % still-in-flight queue messages would be dropped.
+            testCase.waitUntil(@() status.Message == "done", 3);
+
             wait(future);
             testCase.waitUntil(@() status.IsComplete, 3);
 
@@ -141,6 +148,9 @@ classdef tBackgroundFuture < matlab.unittest.TestCase
 
             function out = addAndReport(q, a, b)
                 send(q, "done");
+                % pause so the queue has time to deliver the message
+                % to the client before the future finishes.
+                pause(0.05);
                 out = a + b;
             end
         end
