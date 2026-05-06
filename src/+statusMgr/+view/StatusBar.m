@@ -129,10 +129,15 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             % Details button: small, opens/closes the Popout that
             % shows the full status.Message. Visible only when the
             % current status has details worth showing (Error /
-            % Warning / Success).
+            % Warning / Success). The button drives the Popout via
+            % an explicit toggle callback rather than Popout's own
+            % Trigger="click" mechanism — that way the test suite
+            % (and any programmatic driver) can drive the open/close
+            % via standard ButtonPushedFcn semantics.
             obj.DetailsButton = uibutton(obj.Layout, ...
                 "Text", "...", ...
-                "Visible", "off");
+                "Visible", "off", ...
+                "ButtonPushedFcn", @(~,~) obj.toggleDetailsPopout());
             obj.DetailsButton.Layout.Column = 4;
 
             obj.OkButton = uibutton(obj.Layout, ...
@@ -142,15 +147,14 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             obj.OkButton.Layout.Column = 5;
 
             % Popout for showing the full status.Message. Anchored to
-            % the Details button — Trigger="click" gives the user the
-            % standard open-on-click / click-outside-to-close
-            % behaviour. An explicit Position is required: without
-            % it the popout's preferred size depends on its content
-            % at construction time (which is empty here) and ends up
-            % too small for typical error reports.
+            % the Details button. Trigger="manual" because the button's
+            % ButtonPushedFcn opens/closes it explicitly. An explicit
+            % Position is required: without it the popout's preferred
+            % size depends on its content at construction time (empty
+            % here) and ends up too small for typical error reports.
             obj.Popout = matlab.ui.container.internal.Popout( ...
                 "Target", obj.DetailsButton, ...
-                "Trigger", "click", ...
+                "Trigger", "manual", ...
                 "Placement", "auto", ...
                 "Position", [0, 0, obj.PopoutSize(1), obj.PopoutSize(2)]);
             popoutGrid = uigridlayout(obj.Popout, [1, 1], ...
@@ -158,6 +162,20 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             obj.PopoutLabel = uilabel(popoutGrid, ...
                 "Text", "", ...
                 "WordWrap", "on");
+        end
+
+        function toggleDetailsPopout(obj)
+            % Open the popout if closed; close it if open. Wired to
+            % the Details button's ButtonPushedFcn so a single click
+            % flips the state.
+            if isempty(obj.Popout) || ~isvalid(obj.Popout)
+                return
+            end
+            if obj.Popout.IsOpen
+                obj.Popout.close();
+            else
+                obj.Popout.open();
+            end
         end
 
         function onCancelClicked(obj)
@@ -179,12 +197,30 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
         end
 
         function present(obj, message, color, progressVisible, progressValue, cancelVisible, okVisible, popoutText)
+            % The listener on the Stack can fire after the bar's UI
+            % has been torn down (e.g. parent figure closed, or a
+            % stale instance). Guard against half-constructed /
+            % half-destroyed state up front so a single dangling
+            % listener doesn't error out the addStatus call.
+            if ~obj.uiHandlesValid()
+                return
+            end
             obj.MessageLabel.Text = message;
             obj.MessageLabel.FontColor = color;
             obj.setProgress(progressVisible, progressValue);
             obj.setCancelVisible(cancelVisible);
             obj.setDetails(popoutText);
             obj.setOkVisible(okVisible);
+        end
+
+        function tf = uiHandlesValid(obj)
+            tf = ~isempty(obj.MessageLabel) && isvalid(obj.MessageLabel) ...
+                && ~isempty(obj.ProgressIndicator) && isvalid(obj.ProgressIndicator) ...
+                && ~isempty(obj.CancelButton) && isvalid(obj.CancelButton) ...
+                && ~isempty(obj.DetailsButton) && isvalid(obj.DetailsButton) ...
+                && ~isempty(obj.OkButton) && isvalid(obj.OkButton) ...
+                && ~isempty(obj.Popout) && isvalid(obj.Popout) ...
+                && ~isempty(obj.PopoutLabel) && isvalid(obj.PopoutLabel);
         end
 
         function setProgress(obj, visible, value)

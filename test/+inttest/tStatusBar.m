@@ -157,6 +157,20 @@ classdef tStatusBar < matlab.uitest.TestCase
             testCase.verifyFalse(testCase.Bar.Popout.IsOpen)
         end
 
+        function tDetailsButtonTogglesPopout(testCase)
+            % First click of the Details button opens the popout;
+            % second click closes it.
+            testCase.Stack.addStatus("Error", ...
+                Message="long detail text", MessageShort="short");
+
+            testCase.assertFalse(testCase.Bar.Popout.IsOpen)
+            testCase.press(testCase.Bar.DetailsButton);
+            testCase.verifyTrue(testCase.Bar.Popout.IsOpen)
+
+            testCase.press(testCase.Bar.DetailsButton);
+            testCase.verifyFalse(testCase.Bar.Popout.IsOpen)
+        end
+
         function tIdleClearsTheBar(testCase)
             testCase.Stack.addStatus("Info", Message="something");
             testCase.assertEqual(string(testCase.Bar.MessageLabel.Text), "something")
