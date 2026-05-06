@@ -53,7 +53,9 @@ classdef tBackgroundFuture < matlab.unittest.TestCase
             testCase.addTeardown(@() cancel(f));
 
             status = S.monitorFuture(f, PollPeriod=0.05);
-            testCase.assertEqual(string(f.State), "queued") % or "running"
+            % The future is queued or already running by now — both
+            % are pre-terminal states.
+            testCase.assertTrue(ismember(string(f.State), ["queued", "running"]))
 
             status.complete();
 
@@ -112,7 +114,9 @@ classdef tBackgroundFuture < matlab.unittest.TestCase
                 Message="answer", PollPeriod=0.05);
             testCase.addTeardown(@() cancel(future));
 
-            testCase.assertEqual(S.CurrentStatus.Message, "answer")
+            % Check via the captured status — the future is fast and
+            % may already be off the stack by the time we assert.
+            testCase.assertEqual(status.Message, "answer")
 
             wait(future);
             testCase.waitUntil(@() status.IsComplete, 3);
@@ -146,9 +150,12 @@ classdef tBackgroundFuture < matlab.unittest.TestCase
             f = parfeval(backgroundPool, @() 1, 1);
             testCase.addTeardown(@() cancel(f));
 
-            S.monitorFuture(f, Cancellable=false, PollPeriod=0.05);
+            status = S.monitorFuture(f, Cancellable=false, PollPeriod=0.05);
 
-            testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Running)
+            % Use the captured status — the trivial future is fast
+            % and may be off the stack by the assertion. status.Type
+            % is set at construction and isn't mutated by complete().
+            testCase.verifyEqual(status.Type, statusMgr.StatusType.Running)
         end
 
     end

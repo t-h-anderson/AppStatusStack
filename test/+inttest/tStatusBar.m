@@ -26,14 +26,14 @@ classdef tStatusBar < matlab.uitest.TestCase
 
         function tInfoStatusUpdatesMessage(testCase)
             testCase.Stack.addStatus("Info", Message="hello");
-            testCase.verifyEqual(testCase.Bar.MessageLabel.Text, "hello")
+            testCase.verifyEqual(string(testCase.Bar.MessageLabel.Text), "hello")
             testCase.verifyEqual(string(testCase.Bar.ProgressIndicator.Visible), "off")
             testCase.verifyEqual(string(testCase.Bar.CancelButton.Visible), "off")
         end
 
         function tErrorStatusUsesErrorColor(testCase)
             testCase.Stack.addStatus("Error", Message="boom");
-            testCase.verifyEqual(testCase.Bar.MessageLabel.Text, "boom")
+            testCase.verifyEqual(string(testCase.Bar.MessageLabel.Text), "boom")
             testCase.verifyEqual(testCase.Bar.MessageLabel.FontColor, ...
                 testCase.Bar.ErrorColor)
         end
@@ -81,11 +81,11 @@ classdef tStatusBar < matlab.uitest.TestCase
 
         function tIdleClearsTheBar(testCase)
             testCase.Stack.addStatus("Info", Message="something");
-            testCase.assertEqual(testCase.Bar.MessageLabel.Text, "something")
+            testCase.assertEqual(string(testCase.Bar.MessageLabel.Text), "something")
 
             testCase.Stack.removeAllStatuses();
 
-            testCase.verifyEqual(testCase.Bar.MessageLabel.Text, "")
+            testCase.verifyEqual(string(testCase.Bar.MessageLabel.Text), "")
         end
 
         function tDoesNotClaimRequestingInput(testCase)
@@ -100,10 +100,18 @@ classdef tStatusBar < matlab.uitest.TestCase
 
         function tFigureResizeFollowsFigureWidth(testCase)
             initialWidth = testCase.Bar.Panel.Position(3);
+            target = initialWidth + 200;
             testCase.Figure.Position(3) = testCase.Figure.Position(3) + 200;
-            drawnow;
 
-            testCase.verifyEqual(testCase.Bar.Panel.Position(3), initialWidth + 200)
+            % SizeChanged may be delivered asynchronously; poll until
+            % the listener has updated the panel or the timeout fires.
+            deadline = tic;
+            while testCase.Bar.Panel.Position(3) ~= target && toc(deadline) < 1
+                drawnow;
+                pause(0.05);
+            end
+
+            testCase.verifyEqual(testCase.Bar.Panel.Position(3), target)
         end
 
         function tDeleteRemovesPanel(testCase)

@@ -121,17 +121,20 @@ classdef tRecordingView < matlab.unittest.TestCase
         end
 
         function tRecordsRequestingInputByDefault(testCase)
-            % HandleInputRequests defaults to false on the recorder, so
-            % requestInput times out (no view claims it). The recorder
-            % still observes the RequestingInput status.
+            % HandleInputRequests defaults to true on the recorder, so
+            % the RequestingInput status is fed through handleInputRequest
+            % and recorded. We check Message rather than Type because
+            % the Status object is held by reference — by the time the
+            % assertion runs, requestInput's timeout has transitioned
+            % the same Status object's Type to ValueSupplied.
             S = statusMgr.Stack();
             view = statusMgr.view.RecordingView(S);
             testCase.addTeardown(@() delete(view))
 
             S.requestInput("Need value", DefaultValue="x", Timeout=0.1);
 
-            recordedTypes = [view.RecordedStatuses.Type];
-            testCase.verifyTrue(any(recordedTypes == statusMgr.StatusType.RequestingInput))
+            recordedMsgs = [view.RecordedStatuses.Message];
+            testCase.verifyTrue(any(recordedMsgs == "Need value"))
         end
 
     end
