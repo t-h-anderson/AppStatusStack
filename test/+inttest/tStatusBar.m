@@ -101,7 +101,13 @@ classdef tStatusBar < matlab.uitest.TestCase
         function tFigureResizeFollowsFigureWidth(testCase)
             initialWidth = testCase.Bar.Panel.Position(3);
             target = initialWidth + 200;
-            testCase.Figure.Position(3) = testCase.Figure.Position(3) + 200;
+
+            % Use full-vector Position assignment — element assignment
+            % (Position(3) = w) does not reliably fire SizeChanged on
+            % uifigure across MATLAB versions.
+            pos = testCase.Figure.Position;
+            pos(3) = pos(3) + 200;
+            testCase.Figure.Position = pos;
 
             % SizeChanged may be delivered asynchronously; poll until
             % the listener has updated the panel or the timeout fires.
