@@ -37,14 +37,14 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
 
     properties (SetAccess = protected)
         Parent
-        Layout matlab.ui.container.GridLayout = matlab.ui.container.GridLayout.empty(1,0)
-        MessageLabel matlab.ui.control.Label = matlab.ui.control.Label.empty(1,0)
-        ProgressIndicator = []  % matlab.ui.control.internal.ProgressIndicator
-        CancelButton matlab.ui.control.Button = matlab.ui.control.Button.empty(1,0)
-        DetailsButton matlab.ui.control.Button = matlab.ui.control.Button.empty(1,0)
-        OkButton matlab.ui.control.Button = matlab.ui.control.Button.empty(1,0)
-        Popout = []           % matlab.ui.container.internal.Popout
-        PopoutLabel matlab.ui.control.Label = matlab.ui.control.Label.empty(1,0)
+        Layout matlab.ui.container.GridLayout {mustBeScalarOrEmpty} = matlab.ui.container.GridLayout.empty(1,0)
+        MessageLabel matlab.ui.control.Label {mustBeScalarOrEmpty} = matlab.ui.control.Label.empty(1,0)
+        ProgressIndicator matlab.ui.control.internal.ProgressIndicator {mustBeScalarOrEmpty} = matlab.ui.control.internal.ProgressIndicator.empty(1,0)
+        CancelButton matlab.ui.control.Button {mustBeScalarOrEmpty} = matlab.ui.control.Button.empty(1,0)
+        DetailsButton matlab.ui.control.Button {mustBeScalarOrEmpty} = matlab.ui.control.Button.empty(1,0)
+        OkButton matlab.ui.control.Button {mustBeScalarOrEmpty} = matlab.ui.control.Button.empty(1,0)
+        Popout matlab.ui.container.internal.Popout {mustBeScalarOrEmpty} = matlab.ui.container.internal.Popout.empty(1,0)
+        PopoutText matlab.ui.control.HTML {mustBeScalarOrEmpty} = matlab.ui.control.HTML.empty(1,0)
     end
 
     properties
@@ -136,6 +136,7 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             % (clicking the trigger button is treated as "outside",
             % which would close-then-reopen).
             obj.DetailsButton = uibutton(obj.Layout, ...
+                "ButtonPushedFcn", @(~,~) obj.onDetailsButtonPressed(), ...
                 "Text", "...", ...
                 "Visible", "off");
             obj.DetailsButton.Layout.Column = 4;
@@ -155,23 +156,20 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             % for typical error reports.
             obj.Popout = matlab.ui.container.internal.Popout( ...
                 "Target", obj.DetailsButton, ...
-                "Trigger", "click", ...
                 "Placement", "auto", ...
                 "Position", [0, 0, obj.PopoutSize(1), obj.PopoutSize(2)]);
+
             % RowHeight and ColumnWidth of "1x" make the inner uilabel
             % fill the popout's interior. Without explicit sizing the
             % grid defaults to "fit", which collapses to zero height
             % when the label's WordWrap content is initially empty —
             % so the text never appears even after Text is set later.
             popoutGrid = uigridlayout(obj.Popout, [1, 1], ...
-                "Padding", [8, 8, 8, 8], ...
+                "Padding", 0, ...
                 "RowHeight", {"1x"}, ...
                 "ColumnWidth", {"1x"});
-            obj.PopoutLabel = uilabel(popoutGrid, ...
-                "Text", "", ...
-                "WordWrap", "on", ...
-                "VerticalAlignment", "top", ...
-                "HorizontalAlignment", "left");
+            obj.PopoutText = uihtml(popoutGrid, ...
+                "HTMLSource", "");
         end
 
         function onCancelClicked(obj)
@@ -189,6 +187,14 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             s = obj.IncomingStatus;
             if isvalid(s) && ~s.IsComplete
                 s.complete();
+            end
+        end
+
+        function onDetailsButtonPressed(obj)
+            if obj.Popout.IsOpen
+                obj.Popout.close();
+            else
+                obj.Popout.open();
             end
         end
 
@@ -216,7 +222,7 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
                 && ~isempty(obj.DetailsButton) && isvalid(obj.DetailsButton) ...
                 && ~isempty(obj.OkButton) && isvalid(obj.OkButton) ...
                 && ~isempty(obj.Popout) && isvalid(obj.Popout) ...
-                && ~isempty(obj.PopoutLabel) && isvalid(obj.PopoutLabel);
+                && ~isempty(obj.PopoutText) && isvalid(obj.PopoutText);
         end
 
         function setProgress(obj, visible, value)
@@ -261,7 +267,7 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             % the only way to open the popout from the UI; if the
             % popout was open we close it explicitly so it doesn't
             % linger after the alert is gone.
-            obj.PopoutLabel.Text = text;
+            obj.PopoutText.HTMLSource = text;
             if text == ""
                 obj.DetailsButton.Visible = "off";
                 obj.Layout.ColumnWidth{4} = 0;

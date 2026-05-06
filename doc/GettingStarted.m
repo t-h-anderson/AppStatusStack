@@ -19,19 +19,25 @@ myStack = statusMgr.Stack();
 %[text] ## StatusView
 %[text] The status view should be stored as a property of the app launcher or main view. Create a state view via statusMgr.ConditionView(myGraphicsHandle, myStack); where myGraphicsHandle is a handle to a graphics object and myStack in an instance of statusMgr.StatusStack that the view should watch. For example,
 f = uifigure("Visible","on");
+%%
 myStateView = statusMgr.view.Popup(f, myStack);
 %%
 commandLineView = statusMgr.view.CommandWindow(myStack);
+%%
 %[text] Or render an inline non-modal status bar (color-coded message + optional progress + Cancel button for RunningCancellable). The bar's top-level child is a uigridlayout, which auto-resizes with its parent — so for a "bar at the bottom of a figure" layout, give StatusBar a row in your own outer uigridlayout:
-% outer = uigridlayout(f, [2, 1], "RowHeight", {"1x", 28});
-% mainContent = uipanel(outer);
-% statusBar = statusMgr.view.StatusBar(outer, myStack);
+outer = uigridlayout(f, [2, 1], "RowHeight", {"1x", 28});
+mainContent = uipanel(outer);
+statusBar = statusMgr.view.StatusBar(outer, myStack);
 %%
 %[text] ## Adding a status
 %[text] To add a status, use the addStatus method of StatusStack. There are two possible ways to call the method:
-status = myStack.addStatus(statusMgr.StatusType.Error, "Message" , "My Error Message"); %[output:7d864a88]
+try
+    error("a:b:c", "An error has occured")
+catch me
+    status = myStack.addError(me);
+end
 %[text] Or
-[status, cleanupObj] = myStack.addStatus(statusMgr.StatusType.Error, "Message" , "My Second Error Message"); %[output:13de2705]
+[status, cleanupObj] = myStack.addStatus(statusMgr.StatusType.Error, "Message" , "My Second Error Message", "MessageShort", "Summary of error");
 %[text] Here, statusID is a (quasi-) unique identifier for the status, while cleanupObj is created using onCleanup, such that the status will be automatically removed from the stack whenever cleanupObj is deleted or goes out of scope (see removing a status below).
 %%
 %[text] ### Available States
@@ -39,10 +45,10 @@ status = myStack.addStatus(statusMgr.StatusType.Error, "Message" , "My Error Mes
 %[text] Idle:
 myStack.addStatus(statusMgr.StatusType.Idle, "Message", "Nothing to show here", "IsTemporary", true);
 %[text] Running:
-cancelState = myStack.addStatus(statusMgr.StatusType.RunningCancellable, "Message", "Show a cancellable progress bar"); %[output:356e866a]
+cancelState = myStack.addStatus(statusMgr.StatusType.RunningCancellable, "Message", "Show a cancellable progress bar");
 l = addlistener(cancelState, "Completed", @(~,~) cancelClicked);
 while ~cancelState.IsComplete %[output:group:1cf35814]
-    fprintf(".") %[output:6d5c3dce]
+    fprintf(".") %[output:356e866a]
     pause(1);
 end %[output:group:1cf35814]
 
@@ -50,11 +56,11 @@ function cancelClicked(varargin)
     disp("Cancel Clicked")
 end
 %[text] Error:
-myStack.addStatus(statusMgr.StatusType.Error, "Message", "Show a uialert with a red exclamation mark"); %[output:0ee5d13e]
+myStack.addStatus(statusMgr.StatusType.Error, "Message", "Show a uialert with a red exclamation mark");
 %[text] Warning:
 myStack.addStatus(statusMgr.StatusType.Warning, "Message", "Show a uialert with a yellow exclamation mark");
 %[text] Success:
-myStack.addStatus(statusMgr.StatusType.Success, "Message", "Show a uialert with a green tick"); %[output:403d4466]
+myStack.addStatus(statusMgr.StatusType.Success, "Message", "Show a uialert with a green tick");
 %%
 %[text] ## Removing a status
 %[text] To remove a status, you can delete a cleanupObj associated with a status, 
@@ -97,94 +103,78 @@ myStack.run(@() pause(3)); %[output:35541758]
 
 % Error
 myStack.run(@() error("hello world error")); %[output:0b046aa0]
-
 % Warning
 myStack.run(@() warning("mywarn:test","hello world warning")); %[output:0446e47d]
-
 % Skip auto-capture and rethrow / silently ignore instead
-% myStack.run(@() error("boom"), CatchErrors=false);
-% myStack.run(@() warning("test:w","ignored"), CatchWarnings=false);
+myStack.run(@() error("boom"), CatchErrors=false);
+myStack.run(@() warning("test:w","ignored"), CatchWarnings=false);
 %%
 %[text] ## Cooperative cancellation
 %[text] runCancellable wraps a function with a RunningCancellable status and passes that Status as the first argument. A cancel-aware view (e.g. the Popup progress dialog Cancel button) calls status.complete(); the running function polls status.IsComplete and exits. While the function is running, IsComplete=true unambiguously means "cancel requested" — the natural-completion path only fires after the function returns.
-% myStack.runCancellable(@(status) doSlowWork(status));
-%
-% function doSlowWork(status)
-%     for i = 1:100
-%         status.throwIfComplete();   % or: if status.IsComplete; return; end
-%         pause(0.05);
-%     end
-% end
+myStack.runCancellable(@(status) doSlowWork(status));
+
+function doSlowWork(status)
+    for i = 1:100
+        status.throwIfComplete();   % or: if status.IsComplete; return; end
+        pause(0.05);
+    end
+end
 %%
 %[text] ## Suppressing identifiers
 %[text] Suppress noisy statuses by identifier. Glob patterns (`*`) match across colons, so namespace-prefixed identifiers are easy to filter:
-% myStack.suppressIdentifier("myapp:network:*")  % everything under myapp:network
-% myStack.suppressIdentifier("*timeout*")        % anything mentioning timeout
-% myStack.unsuppressIdentifier("myapp:network:*") % must match the entry exactly
+myStack.suppressIdentifier("myapp:network:*")  % everything under myapp:network
+myStack.suppressIdentifier("*timeout*")        % anything mentioning timeout
+myStack.unsuppressIdentifier("myapp:network:*") % must match the entry exactly
 %%
 %[text] ## Recording history
 %[text] RecordingView is a non-rendering view that appends every status it receives into RecordedStatuses. Useful for activity-log panels in apps, and for tests that want to assert on what was published rather than poking at internal stack state.
-% recorder = statusMgr.view.RecordingView(myStack);
-% myStack.addStatus("Info", Message="hello");
-% recorder.RecordedStatuses(end).Message  % "hello"
-% recorder.clear();  % drop the captured history
+recorder = statusMgr.view.RecordingView(myStack);
+myStack.addStatus("Info", Message="hello");
+recorder.RecordedStatuses(end).Message  % "hello"
+recorder.clear();  % drop the captured history
 %%
 %[text] ## Per-view filters
 %[text] Every view supports IncludeIdentifiers / ExcludeIdentifiers glob lists. They complement the stack-level suppression: stack-level hides for everyone, view-level lets you tune visibility per view.
-% chatty = statusMgr.view.CommandWindow(myStack, ...
-%     IncludeIdentifiers=["myapp:debug:*"]);
-% audit = statusMgr.view.FileLog(myStack, ...
-%     ExcludeIdentifiers=["*:debug"]);
+chatty = statusMgr.view.CommandWindow(myStack, ...
+    IncludeIdentifiers=["myapp:debug:*"]);
+audit = statusMgr.view.FileLog(myStack, ...
+    ExcludeIdentifiers=["*:debug"]);
 %%
 %[text] ## Structured / rotating logs
-%[text] FileLog accepts a JSON-lines format and a byte-cap that rotates the log when it grows past MaxBytes. Rotation appends "_N" before the file extension, e.g. Log.txt → Log_1.txt → Log_2.txt.
-% statusMgr.view.FileLog(myStack, LogFolder=pwd, ...
-%     Format="json-lines", MaxBytes=1e6);
+%[text] FileLog accepts a JSON-lines format and a byte-cap that rotates the log when it grows past MaxBytes. Rotation appends "\_N" before the file extension, e.g. Log.txt → Log\_1.txt → Log\_2.txt.
+statusMgr.view.FileLog(myStack, LogFolder=pwd, ...
+    Format="json-lines", MaxBytes=1e6);
 %%
 %[text] ## Background work via parfeval
 %[text] runInBackground launches a parfeval future on the backgroundPool, pushes a RunningCancellable status, and converts the future's terminal state into either status completion (success) or an Error status (failure). The StatusBar's Cancel button cancels the future. For streaming progress, pass a parallel.pool.DataQueue to both the worker (which calls send) and runInBackground (which calls afterEach internally to update the status):
-% q = parallel.pool.DataQueue;
-% [future, status] = myStack.runInBackground(@workerFcn, ...
-%     Args={q, x, y}, NumOutputs=1, ...
-%     Message="Crunching numbers", ProgressQueue=q);
-%
-% function out = workerFcn(q, x, y)
-%     for i = 1:100
-%         send(q, i/100);          % numeric -> Value
-%         % send(q, "Step " + i)    % string  -> Message
-%         % send(q, struct(Value=i/100, Message="Step " + i))
-%     end
-%     out = doFinalWork(x, y);
-% end
-%
-% % Fetch the result when ready (blocks):
-% result = fetchOutputs(future);
-%
-% % Or monitor a future you launched yourself:
-% f = parfeval(backgroundPool, @longJob, 1, x);
-% myStack.monitorFuture(f, Message="Long job");
+q = parallel.pool.DataQueue;
+[future, status] = myStack.runInBackground(@workerFcn, ...
+    Args={q, x, y}, NumOutputs=1, ...
+    Message="Crunching numbers", ProgressQueue=q);
+
+function out = workerFcn(q, x, y)
+    for i = 1:100
+        send(q, i/100);          % numeric -> Value
+        % send(q, "Step " + i)    % string  -> Message
+        % send(q, struct(Value=i/100, Message="Step " + i))
+    end
+    out = doFinalWork(x, y);
+end
+
+% Fetch the result when ready (blocks):
+result = fetchOutputs(future);
+
+% Or monitor a future you launched yourself:
+f = parfeval(backgroundPool, @longJob, 1, x);
+myStack.monitorFuture(f, Message="Long job");
+
 %[appendix]{"version":"1.0"}
 %---
 %[metadata:view]
 %   data: {"layout":"inline","rightPanelPercent":40}
 %---
-%[output:7d864a88]
-%   data: {"dataType":"text","outputData":{"text":"Error: My Error Message\n","truncated":false}}
-%---
-%[output:13de2705]
-%   data: {"dataType":"text","outputData":{"text":"Error: My Second Error Message\n","truncated":false}}
-%---
 %[output:356e866a]
-%   data: {"dataType":"text","outputData":{"text":"Show a cancellable progress bar\n","truncated":false}}
-%---
-%[output:6d5c3dce]
-%   data: {"dataType":"text","outputData":{"text":".............................................................","truncated":false}}
-%---
-%[output:0ee5d13e]
-%   data: {"dataType":"text","outputData":{"text":"Error: Show a uialert with a red exclamation mark\n","truncated":false}}
-%---
-%[output:403d4466]
-%   data: {"dataType":"text","outputData":{"text":"Show a uialert with a green tick\n","truncated":false}}
+%   data: {"dataType":"text","outputData":{"text":"......","truncated":false}}
 %---
 %[output:4ff2e088]
 %   data: {"dataType":"text","outputData":{"text":"Preparing to delete the cleanup obj\n","truncated":false}}
