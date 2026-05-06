@@ -31,6 +31,7 @@ classdef tStatusBar < matlab.uitest.TestCase
             testCase.verifyEqual(string(testCase.Bar.CancelButton.Visible), "off")
             testCase.verifyEqual(string(testCase.Bar.DetailsButton.Visible), "off")
             testCase.verifyEqual(string(testCase.Bar.OkButton.Visible), "off")
+            testCase.verifyEqual(string(testCase.Bar.CloseAllButton.Visible), "off")
         end
 
         function tErrorStatusUsesErrorColor(testCase)
@@ -85,7 +86,7 @@ classdef tStatusBar < matlab.uitest.TestCase
             % Error/Warning/Success show the Details button (which
             % toggles the Popout) and the OK button (which dismisses
             % the alert). The Popout content is populated with the
-            % full Message.
+            % full Message wrapped in <pre>.
             testCase.Stack.addStatus("Error", ...
                 Message="full error details here", ...
                 MessageShort="oops");
@@ -93,8 +94,10 @@ classdef tStatusBar < matlab.uitest.TestCase
             testCase.verifyEqual(string(testCase.Bar.MessageLabel.Text), "oops")
             testCase.verifyEqual(string(testCase.Bar.DetailsButton.Visible), "on")
             testCase.verifyEqual(string(testCase.Bar.OkButton.Visible), "on")
-            testCase.verifyEqual(string(testCase.Bar.PopoutLabel.Text), ...
-                "full error details here")
+            testCase.verifyEqual(string(testCase.Bar.CloseAllButton.Visible), "off")
+            testCase.verifyTrue(contains( ...
+                string(testCase.Bar.PopoutText.HTMLSource), ...
+                "full error details here"))
         end
 
         function tWarningShowsOkButton(testCase)
@@ -159,23 +162,72 @@ classdef tStatusBar < matlab.uitest.TestCase
 
         function tPopoutContentIsFullMessage(testCase)
             % The Popout shows the full status.Message even when the
-            % bar's MessageLabel is showing the short version. Drive
-            % the Popout via its API rather than testCase.press —
-            % the Details button uses Popout.Trigger="click" rather
-            % than ButtonPushedFcn (so the Popout's own click handler
-            % isn't fought with our toggle), which the uitest harness
-            % doesn't simulate.
+            % bar's MessageLabel is showing the short version. The
+            % full text is wrapped in <pre> for whitespace/newline
+            % preservation, hence the contains() check.
             testCase.Stack.addStatus("Error", ...
                 Message="long detail text", MessageShort="short");
 
             testCase.assertEqual(string(testCase.Bar.MessageLabel.Text), "short")
-            testCase.assertEqual(string(testCase.Bar.PopoutLabel.Text), "long detail text")
+            testCase.assertTrue(contains( ...
+                string(testCase.Bar.PopoutText.HTMLSource), "long detail text"))
 
             testCase.Bar.Popout.open();
             testCase.verifyTrue(testCase.Bar.Popout.IsOpen)
 
             testCase.Bar.Popout.close();
             testCase.verifyFalse(testCase.Bar.Popout.IsOpen)
+        end
+
+        function tMultipleAlertsShowsCloseAllAndCount(testCase)
+            % With more than one alert on the stack, the bar shows
+            % the Close All button, suffixes the message with the
+            % count, and the popout body contains every alert.
+            testCase.Stack.addStatus("Error", ...
+                Message="first error full", MessageShort="err1");
+            testCase.Stack.addStatus("Warning", ...
+                Message="warning detail", MessageShort="warn1");
+            testCase.Stack.addStatus("Error", ...
+                Message="second error full", MessageShort="err2");
+
+            testCase.verifyEqual(string(testCase.Bar.CloseAllButton.Visible), "on")
+            testCase.verifyEqual(string(testCase.Bar.MessageLabel.Text), ...
+                "err2 (3 alerts)")
+
+            html = string(testCase.Bar.PopoutText.HTMLSource);
+            testCase.verifyTrue(contains(html, "first error full"))
+            testCase.verifyTrue(contains(html, "warning detail"))
+            testCase.verifyTrue(contains(html, "second error full"))
+        end
+
+        function tSingleAlertHidesCloseAll(testCase)
+            % With exactly one alert, Close All is not offered (OK
+            % alone is sufficient).
+            testCase.Stack.addStatus("Error", Message="only one");
+            testCase.verifyEqual(string(testCase.Bar.CloseAllButton.Visible), "off")
+        end
+
+        function tCloseAllButtonRemovesAllAlertsButLeavesRunning(testCase)
+            % "Close All" dismisses every Error/Warning/Success but
+            % does not touch Running statuses — those represent
+            % in-flight work that the user almost certainly does not
+            % want killed by clicking a button labelled "Close All".
+            running = testCase.Stack.addStatus("Running", Message="working");
+            err1 = testCase.Stack.addStatus("Error", Message="boom1");
+            err2 = testCase.Stack.addStatus("Error", Message="boom2");
+            testCase.assertEqual(string(testCase.Bar.CloseAllButton.Visible), "on")
+
+            testCase.press(testCase.Bar.CloseAllButton);
+
+            testCase.verifyTrue(err1.IsComplete)
+            testCase.verifyTrue(err2.IsComplete)
+            testCase.verifyFalse(running.IsComplete)
+            % Stack should now have just Idle + the Running.
+            currentTypes = [testCase.Stack.Statuses.Type];
+            testCase.verifyTrue(any(currentTypes == statusMgr.StatusType.Running))
+            testCase.verifyFalse(any(ismember(currentTypes, ...
+                [statusMgr.StatusType.Error, statusMgr.StatusType.Warning, ...
+                 statusMgr.StatusType.Success])))
         end
 
         function tIdleClearsTheBar(testCase)
