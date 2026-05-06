@@ -2,9 +2,14 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
     %STATUSBAR Inline non-modal status view rendered in a figure container.
     %
     % Renders the current status as a thin bar with:
-    %   * A message label (colour-coded by status type)
+    %   * A message label (colour-coded by status type) showing
+    %     status.MessageShort. Clicking the label opens a Popout with
+    %     the full status.Message for Error / Warning / Success types.
     %   * A linear progress indicator (visible only for Running statuses)
     %   * A Cancel button (visible only for RunningCancellable statuses)
+    %   * An OK button (visible only for Error / Warning / Success
+    %     statuses) that completes the status — i.e. dismisses the
+    %     alert by removing it from the stack.
     %
     % Unlike Popup, no modal dialogs appear — every update happens
     % inline so user code can keep interacting with the rest of the UI.
@@ -24,10 +29,11 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
     %
     % Pass any uifigure / uipanel / uigridlayout cell as the parent.
     %
-    % Implementation note: the linear progress indicator is built on
-    % matlab.ui.control.internal.ProgressIndicator, which is an
-    % internal Mathworks API. It works in current MATLAB releases but
-    % may move or change without notice.
+    % Implementation note: the linear progress indicator and the
+    % popout container are matlab.ui.control.internal.ProgressIndicator
+    % and matlab.ui.container.internal.Popout — both are internal
+    % Mathworks APIs. They work in current MATLAB releases but may
+    % move or change without notice.
 
     properties (SetAccess = protected)
         Parent
@@ -35,6 +41,9 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
         MessageLabel matlab.ui.control.Label = matlab.ui.control.Label.empty(1,0)
         ProgressIndicator = []  % matlab.ui.control.internal.ProgressIndicator
         CancelButton matlab.ui.control.Button = matlab.ui.control.Button.empty(1,0)
+        OkButton matlab.ui.control.Button = matlab.ui.control.Button.empty(1,0)
+        Popout = []           % matlab.ui.container.internal.Popout
+        PopoutLabel matlab.ui.control.Label = matlab.ui.control.Label.empty(1,0)
     end
 
     properties
@@ -81,6 +90,7 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
         end
 
         function delete(obj)
+            delete(obj.Popout);
             delete(obj.Layout);
         end
 
@@ -91,8 +101,9 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
         function buildUI(obj)
             % uigridlayout auto-resizes with its parent — that's why
             % we use it as the top-level child rather than a uipanel.
-            obj.Layout = uigridlayout(obj.Parent, [1, 3], ...
-                "ColumnWidth", {"1x", 0, 0}, ...
+            % Columns: message (flex), progress, cancel, ok.
+            obj.Layout = uigridlayout(obj.Parent, [1, 4], ...
+                "ColumnWidth", {"1x", 0, 0, 0}, ...
                 "Padding", [6, 2, 6, 2], ...
                 "ColumnSpacing", 6, ...
                 "RowHeight", {"1x"});
@@ -110,6 +121,27 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
                 "Visible", "off", ...
                 "ButtonPushedFcn", @(~,~) obj.onCancelClicked());
             obj.CancelButton.Layout.Column = 3;
+
+            obj.OkButton = uibutton(obj.Layout, ...
+                "Text", "OK", ...
+                "Visible", "off", ...
+                "ButtonPushedFcn", @(~,~) obj.onOkClicked());
+            obj.OkButton.Layout.Column = 4;
+
+            % Popout for showing the full status.Message on click. The
+            % Trigger is toggled to "click"/"manual" by the display
+            % methods so it only fires when there's something to show.
+            obj.Popout = matlab.ui.container.internal.Popout( ...
+                "Target", obj.MessageLabel, ...
+                "Trigger", "manual", ...
+                "Placement", "top");
+            popoutGrid = uigridlayout(obj.Popout, [1, 1], ...
+                "Padding", [8, 8, 8, 8], ...
+                "RowHeight", {"fit"}, ...
+                "ColumnWidth", {"fit"});
+            obj.PopoutLabel = uilabel(popoutGrid, ...
+                "Text", "", ...
+                "WordWrap", "on");
         end
 
         function onCancelClicked(obj)
@@ -121,11 +153,22 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             end
         end
 
-        function present(obj, message, color, progressVisible, progressValue, cancelVisible)
+        function onOkClicked(obj)
+            % Acknowledge an error/warning/success — completes the
+            % status and removes it from the stack.
+            s = obj.IncomingStatus;
+            if isvalid(s) && ~s.IsComplete
+                s.complete();
+            end
+        end
+
+        function present(obj, message, color, progressVisible, progressValue, cancelVisible, okVisible, popoutText)
             obj.MessageLabel.Text = message;
             obj.MessageLabel.FontColor = color;
             obj.setProgress(progressVisible, progressValue);
             obj.setCancelVisible(cancelVisible);
+            obj.setOkVisible(okVisible);
+            obj.setPopout(popoutText);
         end
 
         function setProgress(obj, visible, value)
@@ -154,35 +197,60 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             end
         end
 
+        function setOkVisible(obj, visible)
+            if visible
+                obj.OkButton.Visible = "on";
+                obj.Layout.ColumnWidth{4} = 50;
+            else
+                obj.OkButton.Visible = "off";
+                obj.Layout.ColumnWidth{4} = 0;
+            end
+        end
+
+        function setPopout(obj, text)
+            % When there's text to show, populate the popout and arm
+            % the click trigger; otherwise clear the content and
+            % disarm so clicking the message has no effect.
+            obj.PopoutLabel.Text = text;
+            if text == ""
+                obj.Popout.Trigger = "manual";
+                if obj.Popout.IsOpen
+                    obj.Popout.close();
+                end
+            else
+                obj.Popout.Trigger = "click";
+            end
+        end
+
         function displayInfo(obj, status)
-            obj.present(status.Message, obj.InfoColor, false, NaN, false);
+            obj.present(status.Message, obj.InfoColor, false, NaN, false, false, "");
         end
 
         function displayRunning(obj, status, cancellable)
-            obj.present(status.Message, obj.InfoColor, true, status.Value, cancellable);
+            obj.present(status.Message, obj.InfoColor, true, status.Value, cancellable, false, "");
         end
 
         function displayError(obj, status)
-            obj.present(status.MessageShort, obj.ErrorColor, false, NaN, false);
+            obj.present(status.MessageShort, obj.ErrorColor, false, NaN, false, true, status.Message);
         end
 
         function displayWarning(obj, status)
-            obj.present(status.MessageShort, obj.WarningColor, false, NaN, false);
+            obj.present(status.MessageShort, obj.WarningColor, false, NaN, false, true, status.Message);
         end
 
         function displaySuccess(obj, status)
-            obj.present(status.MessageShort, obj.SuccessColor, false, NaN, false);
+            obj.present(status.MessageShort, obj.SuccessColor, false, NaN, false, true, status.Message);
         end
 
         function displayIdle(obj, ~)
-            obj.present("", obj.InfoColor, false, NaN, false);
+            obj.present("", obj.InfoColor, false, NaN, false, false, "");
         end
 
         function handleInputRequest(obj, status)
             % Don't claim — just show the prompt. A claim-capable view
             % attached to the same stack (Popup, CommandWindow) will
             % do the actual input collection.
-            obj.present(status.Message, obj.InfoColor, false, NaN, false);
+            obj.present(status.Message, obj.InfoColor, false, NaN, false, false, "");
         end
 
     end

@@ -29,6 +29,7 @@ classdef tStatusBar < matlab.uitest.TestCase
             testCase.verifyEqual(string(testCase.Bar.MessageLabel.Text), "hello")
             testCase.verifyEqual(string(testCase.Bar.ProgressIndicator.Visible), "off")
             testCase.verifyEqual(string(testCase.Bar.CancelButton.Visible), "off")
+            testCase.verifyEqual(string(testCase.Bar.OkButton.Visible), "off")
         end
 
         function tErrorStatusUsesErrorColor(testCase)
@@ -77,6 +78,53 @@ classdef tStatusBar < matlab.uitest.TestCase
 
             testCase.verifyTrue(status.IsComplete)
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
+        end
+
+        function tErrorShowsOkButtonAndPopulatesPopout(testCase)
+            % Error/Warning/Success show the OK button and populate
+            % the click-triggered Popout with the full Message.
+            testCase.Stack.addStatus("Error", ...
+                Message="full error details here", ...
+                MessageShort="oops");
+
+            testCase.verifyEqual(string(testCase.Bar.MessageLabel.Text), "oops")
+            testCase.verifyEqual(string(testCase.Bar.OkButton.Visible), "on")
+            testCase.verifyEqual(string(testCase.Bar.PopoutLabel.Text), ...
+                "full error details here")
+            testCase.verifyEqual(string(testCase.Bar.Popout.Trigger), "click")
+        end
+
+        function tWarningShowsOkButton(testCase)
+            testCase.Stack.addStatus("Warning", Message="be careful");
+            testCase.verifyEqual(string(testCase.Bar.OkButton.Visible), "on")
+        end
+
+        function tSuccessShowsOkButton(testCase)
+            testCase.Stack.addStatus("Success", Message="all done");
+            testCase.verifyEqual(string(testCase.Bar.OkButton.Visible), "on")
+        end
+
+        function tOkButtonClearsTheStatus(testCase)
+            % Clicking OK completes the status, removing it from the
+            % stack and reverting to the previous state (Idle here).
+            status = testCase.Stack.addStatus("Error", Message="boom");
+            testCase.assertFalse(status.IsComplete)
+            testCase.assertEqual(string(testCase.Bar.OkButton.Visible), "on")
+
+            testCase.press(testCase.Bar.OkButton);
+
+            testCase.verifyTrue(status.IsComplete)
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
+        end
+
+        function tPopoutTriggerIsManualForNonAlertTypes(testCase)
+            % Info / Running / Idle disarm the click trigger so
+            % clicking the message label has no effect.
+            testCase.Stack.addStatus("Info", Message="just info");
+            testCase.verifyEqual(string(testCase.Bar.Popout.Trigger), "manual")
+
+            testCase.Stack.addStatus("Running", Message="working");
+            testCase.verifyEqual(string(testCase.Bar.Popout.Trigger), "manual")
         end
 
         function tIdleClearsTheBar(testCase)
