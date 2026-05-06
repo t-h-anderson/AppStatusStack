@@ -147,9 +147,19 @@ classdef tBackgroundFuture < matlab.unittest.TestCase
             testCase.verifyEqual(status.Message, "done")
 
             function out = addAndReport(q, a, b)
+                % Two pauses bracket the send():
+                % * Before — backgroundPool starts the worker almost
+                %   immediately, so we need to wait until the calling
+                %   side (monitorFuture) has registered afterEach on
+                %   the queue. Otherwise the first send fires while
+                %   nobody is listening and is dropped.
+                % * After — give the message round-trip time to land
+                %   before the future completes; if the future
+                %   finishes first, the poll timer marks the status
+                %   IsComplete and onProgressFromWorker drops the
+                %   incoming update.
+                pause(0.1);
                 send(q, "done");
-                % pause so the queue has time to deliver the message
-                % to the client before the future finishes.
                 pause(0.05);
                 out = a + b;
             end
