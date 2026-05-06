@@ -18,9 +18,9 @@ classdef tStatusBar < matlab.uitest.TestCase
 
     methods (Test)
 
-        function tConstructorBuildsPanel(testCase)
-            testCase.assertClass(testCase.Bar.Panel, "matlab.ui.container.Panel")
-            testCase.verifyTrue(isvalid(testCase.Bar.Panel))
+        function tConstructorBuildsLayout(testCase)
+            testCase.assertClass(testCase.Bar.Layout, "matlab.ui.container.GridLayout")
+            testCase.verifyTrue(isvalid(testCase.Bar.Layout))
             testCase.verifyTrue(testCase.Bar.isVisible())
         end
 
@@ -98,35 +98,13 @@ classdef tStatusBar < matlab.uitest.TestCase
             testCase.verifyEqual(value, "anonymous")
         end
 
-        function tFigureResizeFollowsFigureWidth(testCase)
-            initialWidth = testCase.Bar.Panel.Position(3);
-            target = initialWidth + 200;
-
-            % Use full-vector Position assignment — element assignment
-            % (Position(3) = w) does not reliably fire SizeChanged on
-            % uifigure across MATLAB versions.
-            pos = testCase.Figure.Position;
-            pos(3) = pos(3) + 200;
-            testCase.Figure.Position = pos;
-
-            % SizeChanged may be delivered asynchronously; poll until
-            % the listener has updated the panel or the timeout fires.
-            deadline = tic;
-            while testCase.Bar.Panel.Position(3) ~= target && toc(deadline) < 1
-                drawnow;
-                pause(0.05);
-            end
-
-            testCase.verifyEqual(testCase.Bar.Panel.Position(3), target)
-        end
-
-        function tDeleteRemovesPanel(testCase)
+        function tDeleteRemovesLayout(testCase)
             bar = statusMgr.view.StatusBar(testCase.Figure, testCase.Stack);
-            panel = bar.Panel;
+            layout = bar.Layout;
 
             delete(bar);
 
-            testCase.verifyFalse(isvalid(panel))
+            testCase.verifyFalse(isvalid(layout))
         end
 
     end

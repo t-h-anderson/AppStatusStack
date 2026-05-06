@@ -48,8 +48,11 @@ stack = statusMgr.Stack();
 f = uifigure();
 statusMgr.view.Popup(f, stack);
 
-% Inline status bar at the bottom of a uifigure (non-modal)
-statusMgr.view.StatusBar(f, stack);
+% Inline non-modal status bar — give it a sized container (e.g. a
+% row in your own uigridlayout) and it auto-fills it
+g = uigridlayout(f, [2, 1], "RowHeight", {"1x", 28});
+mainContent = uipanel(g);
+statusMgr.view.StatusBar(g, stack);
 
 % Plain-text output to the command window
 statusMgr.view.CommandWindow(stack);

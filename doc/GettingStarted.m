@@ -22,8 +22,10 @@ f = uifigure("Visible","on");
 myStateView = statusMgr.view.Popup(f, myStack);
 %%
 commandLineView = statusMgr.view.CommandWindow(myStack);
-%[text] Or render an inline non-modal status bar pinned to the bottom of a uifigure (color-coded message + optional progress + Cancel button for RunningCancellable):
-% statusBar = statusMgr.view.StatusBar(f, myStack);
+%[text] Or render an inline non-modal status bar (color-coded message + optional progress + Cancel button for RunningCancellable). The bar's top-level child is a uigridlayout, which auto-resizes with its parent — so for a "bar at the bottom of a figure" layout, give StatusBar a row in your own outer uigridlayout:
+% outer = uigridlayout(f, [2, 1], "RowHeight", {"1x", 28});
+% mainContent = uipanel(outer);
+% statusBar = statusMgr.view.StatusBar(outer, myStack);
 %%
 %[text] ## Adding a status
 %[text] To add a status, use the addStatus method of StatusStack. There are two possible ways to call the method:
