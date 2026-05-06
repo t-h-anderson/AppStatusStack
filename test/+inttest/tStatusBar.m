@@ -140,9 +140,13 @@ classdef tStatusBar < matlab.uitest.TestCase
             % constructor accepts a PopoutSize override.
             testCase.verifyEqual(testCase.Bar.Popout.Position(3:4), [400 200])
 
-            customBar = statusMgr.view.StatusBar(uifigure(), testCase.Stack, ...
+            % Capture the parent in a local — teardowns run LIFO and
+            % we'd otherwise read customBar.Parent after customBar
+            % itself had been deleted.
+            customParent = uifigure();
+            testCase.addTeardown(@() delete(customParent));
+            customBar = statusMgr.view.StatusBar(customParent, testCase.Stack, ...
                 PopoutSize=[600 300]);
-            testCase.addTeardown(@() delete(customBar.Parent));
             testCase.addTeardown(@() delete(customBar));
             testCase.verifyEqual(customBar.Popout.Position(3:4), [600 300])
         end
@@ -152,6 +156,10 @@ classdef tStatusBar < matlab.uitest.TestCase
             % dismiss the alert, the popout shouldn't linger after
             % the alert it was describing is gone.
             testCase.Stack.addStatus("Error", Message="boom");
+            % drawnow forces the figure to render so Popout.Controller
+            % is initialised — without it Controller is a
+            % GraphicsPlaceholder and open() errors.
+            drawnow;
             testCase.Bar.Popout.open();
             testCase.assertTrue(testCase.Bar.Popout.IsOpen)
 
@@ -172,6 +180,9 @@ classdef tStatusBar < matlab.uitest.TestCase
             testCase.assertTrue(contains( ...
                 string(testCase.Bar.PopoutText.HTMLSource), "long detail text"))
 
+            % drawnow so Popout.Controller is initialised before
+            % open() is called.
+            drawnow;
             testCase.Bar.Popout.open();
             testCase.verifyTrue(testCase.Bar.Popout.IsOpen)
 
