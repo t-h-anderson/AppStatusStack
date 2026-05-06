@@ -171,8 +171,6 @@ classdef Popup < statusMgr.internal.view.StatusViewBase
 
             if isvalid(obj.Figure)
 
-                % First time showing the status, so increment the
-                % counter
                 numPopups = obj.numberDialogues(obj.Stack);
 
                 if numPopups > 1
@@ -181,16 +179,19 @@ classdef Popup < statusMgr.internal.view.StatusViewBase
 
                 removeStatusFn = @(src, event) obj.completeIfClicked(src, event, status);
 
-                if numPopups == 1
-                    options = "OK";
-                else
-                    options = ["Close All", "OK"];
-                end
+                % Always offer "Close All". The option list is frozen
+                % into uiconfirm at creation time, so if a second
+                % popup-worthy status fires before this dialog is
+                % dismissed the user would otherwise have no way to
+                % dismiss them in one go.
+                options = ["Close All", "OK"];
 
                 uiconfirm(obj.Figure, ...
                     status.MessageShort, ...
                     title, ...
                     "Options", options, ...
+                    "DefaultOption", "OK", ...
+                    "CancelOption", "OK", ...
                     "Icon", icon, ...
                     "CloseFcn", removeStatusFn);
 
@@ -209,7 +210,18 @@ classdef Popup < statusMgr.internal.view.StatusViewBase
                 % See g1622345.
                 tt = obj.TestCase;
                 obj.HasPopup = false; % Avoid triggering the complete if clicked
-                tt.dismissDialog("uiconfirm", f)
+                try
+                    tt.dismissDialog("uiconfirm", f)
+                catch err
+                    % HasPopup may be true while no dialog is actually
+                    % present — e.g. the user dismissed the dialog via
+                    % Esc / the window X without uiconfirm's CloseFcn
+                    % firing in some MATLAB versions. Swallow the
+                    % "no dialogs found" case; rethrow anything else.
+                    if ~strcmp(err.identifier, "MATLAB:uiautomation:Driver:NoConfirmationDialogsFound")
+                        rethrow(err);
+                    end
+                end
                 drawnow
             end
 
@@ -222,10 +234,10 @@ classdef Popup < statusMgr.internal.view.StatusViewBase
 
     methods (Access = protected)
         function completeIfClicked(obj, src, event, status)
-            if obj.HasPopup
-                % Popup closed by click
-                obj.HasPopup = false;
-            end
+            % CloseFcn fires for every dismissal route uiconfirm
+            % surfaces (button click, Esc, window X), so always
+            % drop the flag here rather than gating on HasPopup.
+            obj.HasPopup = false;
             if ~obj.SkipComplete
                 switch event.SelectedOption
                     case "OK"

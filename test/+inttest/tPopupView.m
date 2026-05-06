@@ -274,6 +274,38 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
+        function tCloseAllAvailableForSinglePopup(testCase)
+            % "Close All" is offered even when only one popup-worthy
+            % status is on the stack. Otherwise the option list, frozen
+            % into uiconfirm at creation time, would not catch up if a
+            % second status arrived before the first was dismissed.
+            testCase.Stack.addStatus("Error", Message="solo");
+
+            testCase.chooseDialog("uiconfirm", testCase.Figure, "Close All")
+
+            testCase.assertSize(testCase.Stack.Statuses, [1 1])
+            testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
+        end
+
+        function tClearPreviousAlertSurvivesMissingDialog(testCase)
+            % HasPopup may be left true if uiconfirm's CloseFcn did not
+            % fire (e.g. the dialog was dismissed via Esc / X in a
+            % MATLAB version that skips the callback). The next status
+            % should still be displayed without erroring.
+            fig = figure(Position=[1 1 400 200]);
+            testCase.addTeardown(@() delete(fig));
+            stack = statusMgr.Stack();
+            access = inttest.helpers.PopupAccess(fig, stack);
+            testCase.addTeardown(@() delete(access));
+
+            access.setHasPopup(true); % simulate the desynced flag
+
+            testCase.verifyWarningFree(@() stack.addStatus("Error", Message="next"));
+            testCase.chooseDialog("uiconfirm", fig, "OK")
+            testCase.verifyFalse(access.HasPopup)
+            testCase.verifyEqual(stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
+        end
+
         function tRunCommandWithError(testCase)
             % Automatically click "ok"
             testCase.Stack.run(@() error("test"));
