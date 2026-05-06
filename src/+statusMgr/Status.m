@@ -13,8 +13,14 @@ classdef Status < matlab.mixin.SetGet
         User (1,1) string = ""
 
         IsTemporary (1,1) logical = false % Remove when next status added
-        IsComplete (1,1) logical = false % Has the status been completed
         CompletionFcn (1,:) function_handle {mustBeScalarOrEmpty}
+    end
+
+    properties (SetAccess = protected, SetObservable)
+        % SetObservable so callers can use `waitfor(status, 'IsComplete', true)`
+        % to block until the status is resolved (completed externally or by
+        % an input view supplying a value).
+        IsComplete (1,1) logical = false
     end
 
     properties (SetObservable)
@@ -94,6 +100,13 @@ classdef Status < matlab.mixin.SetGet
             obj.Type = newType;
             if newType == statusMgr.StatusType.ValueSupplied
                 obj.Message = value;
+                % Setting IsComplete (which is SetObservable) unblocks any
+                % `waitfor` in Stack.requestInput. We deliberately do NOT
+                % go through complete(), because that would fire the
+                % "Completed" event and trigger Stack.onStatusCompleted to
+                % remove the status — the caller's onCleanup already does
+                % that, and double-removal is harmless but noisy.
+                obj.IsComplete = true;
             end
         end
 
@@ -133,18 +146,32 @@ classdef Status < matlab.mixin.SetGet
         end
 
         function delete(objs)
-            % Complete valid statuses
-            % isvalid is unreliable inside delete — MATLAB may begin
-            % invalidating handles before the user-defined delete runs.
-            idx = ~isDeleted(objs);
-            objs = objs(idx);
-            
-            % IsComplete is a plain property, always readable here, and
-            % correctly identifies statuses not yet cleaned up via complete().
-            idx = ~[objs.IsComplete];
-            objs = objs(idx);
-            if ~isempty(objs)
-                notify(objs, "Completed");
+            % Per-element teardown of a Status array.
+            %
+            % MATLAB destroys handle arrays in two phases when the
+            % destruction is triggered by property/scope cleanup (e.g.
+            % a Stack being deleted releases its Statuses property):
+            %
+            %   1. Every element of the array is pre-marked invalid.
+            %   2. This user-defined delete runs.
+            %   3. The underlying memory is reclaimed.
+            %
+            % Between (1) and (3) the property storage is still readable
+            % (so `objs(i).IsComplete` works) but `isvalid(objs(i))`
+            % already returns false, and any *batched* access like
+            % `[objs.IsComplete]` throws — gathering across the array
+            % trips the invalid-handle check on the first dead element
+            % and aborts the whole expression. We therefore iterate
+            % element by element with a try/catch so one torn-down
+            % sibling cannot prevent cleanup of the rest.
+            for i = 1:numel(objs)
+                try
+                    if ~objs(i).IsComplete
+                        notify(objs(i), "Completed");
+                    end
+                catch
+                    % Element fully torn down — nothing left to notify.
+                end
             end
         end
 
@@ -153,17 +180,6 @@ classdef Status < matlab.mixin.SetGet
                 val = obj.Message;
             else
                 val = obj.MessageShort;
-            end
-        end
-
-        function idx = isDeleted(objs)
-            idx = false(size(objs));
-            for i = 1:numel(objs)
-                try
-                    objs(i).ID;
-                catch
-                    idx(i) = true;
-                end
             end
         end
 

@@ -1,4 +1,4 @@
-classdef Popup < statusMgr.internal.view.StatusViewInterface
+classdef Popup < statusMgr.internal.view.StatusViewBase
     %StatusVIEW View a status Stack
 
     properties
@@ -6,8 +6,6 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
     end
 
     properties (SetAccess = protected)
-        Stack = statusMgr.Stack.empty(1,0)
-        StackListener 
         CancelListener event.listener
         CancelTimer timer % Due to know bug - see below
     end
@@ -18,6 +16,14 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
 
         HasPopup (1,1) logical = false
         PopupStatusToKeep (1,:) statusMgr.Status = statusMgr.Status
+
+        % Input dialog widgets are held on the view so tests (and any
+        % programmatic driver) can interact with them directly.
+        % findall(0, "Name", ...) is unreliable for modal uifigures
+        % across MATLAB versions, so prefer these handles for automation.
+        InputDialog matlab.ui.Figure {mustBeScalarOrEmpty}
+        InputField matlab.ui.control.EditField {mustBeScalarOrEmpty}
+        InputOkButton matlab.ui.control.Button {mustBeScalarOrEmpty}
     end
 
     properties (Dependent)
@@ -112,10 +118,8 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
         end
 
         function handleInputRequest(obj, status)
-            if ~obj.isVisible()
-                return;
-            end
-
+            % standardDisplay already guards on isVisible() before
+            % dispatching, so we don't repeat the check here.
             status.transitionInputState(statusMgr.StatusType.AwaitingInput);
 
             titleStr = status.Title;
@@ -130,10 +134,17 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
                 "Position", [15 110 310 35], "WordWrap", "on");
             field = uieditfield(d, "text", ...
                 "Position", [15 65 310 30], "Value", defaultVal);
-            uibutton(d, "push", "Text", "OK", ...
+            okBtn = uibutton(d, "push", "Text", "OK", ...
                 "Position", [130 15 80 35], ...
                 "ButtonPushedFcn", @(~,~) onSubmit(field.Value));
             d.CloseRequestFcn = @(~,~) onSubmit(defaultVal);
+
+            % Expose the widgets so tests / programmatic drivers can
+            % interact without relying on findall(0, ...), which does
+            % not consistently surface modal uifigures.
+            obj.InputDialog = d;
+            obj.InputField = field;
+            obj.InputOkButton = okBtn;
 
             function onSubmit(value)
                 delete(d);
@@ -313,6 +324,17 @@ classdef Popup < statusMgr.internal.view.StatusViewInterface
             if obj.hasValidProgressDlg() && obj.ProgressDlg.CancelRequested
                 statusMgr.util.stopTimer(obj.CancelTimer);
                 status = obj.ProgressDlgStatus;
+                % If the status is carrying a CancellationToken (it
+                % will be when the work was launched via
+                % Stack.runCancellable), trip it so the running code
+                % can observe the cancel request. We do this BEFORE
+                % completing/removing the status so the running code
+                % sees the cancel flag while its status is still on
+                % the stack.
+                token = status.Data;
+                if isa(token, "statusMgr.CancellationToken") && isvalid(token)
+                    token.cancel();
+                end
                 status.complete();
                 obj.Stack.removeStatus(status);
             end

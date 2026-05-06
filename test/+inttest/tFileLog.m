@@ -219,7 +219,7 @@ classdef tFileLog < matlab.uitest.TestCase
             import matlab.unittest.constraints.IsFile
             newFileLogView = statusMgr.view.FileLog(testCase.Stack, ...
                 LogFilename="test.txt", ShowIdle=true);
-            
+
             testCase.Stack.addStatus("Idle", Message="i1");
 
             logfile = fullfile(newFileLogView.LogFolder, "test.txt");
@@ -228,6 +228,22 @@ classdef tFileLog < matlab.uitest.TestCase
 
             testCase.verifyTrue(endsWith(lines(1), "[Idle] i1"))
             testCase.verifyEqual(lines(2), "")
+        end
+
+        function tHandleInputRequestLogsRequest(testCase)
+            % FileLog cannot supply interactive input. Its handleInputRequest
+            % logs the prompt and leaves the request unclaimed, so
+            % requestInput times out and returns the default.
+            import matlab.unittest.constraints.IsFile
+            value = testCase.Stack.requestInput("Need input", ...
+                DefaultValue="fallback", Timeout=0.1);
+
+            testCase.verifyEqual(value, "fallback")
+
+            logfile = fullfile(testCase.FileLogView.LogFolder, testCase.FileLogView.LogFilename);
+            testCase.assertThat(logfile, IsFile)
+            lines = strjoin(readlines(logfile), newline);
+            testCase.verifyTrue(contains(lines, "Need input"))
         end
 
     end

@@ -38,7 +38,10 @@ classdef tCommandWindow < matlab.uitest.TestCase
             testCase.Stack.addStatus("Info", Message="i2");
             testCase.verifyFalse(testCase.CommandWindowView.ShowInfo)
             testCase.verifyEqual(testCase.CommandWindowView.IncomingStatus.Message, "i2");
-            testCase.verifyTrue(ismissing(testCase.CommandWindowView.PreviousMessage))
+            % "i2" was suppressed by ShowInfo=false, so PreviousMessage
+            % keeps tracking the last *displayed* message ("i1"). This
+            % is what the dot-collapse logic in writeToTerminal needs.
+            testCase.verifyEqual(testCase.CommandWindowView.PreviousMessage, "i1")
         end
 
         function tDisplayRunning(testCase)
@@ -113,6 +116,20 @@ classdef tCommandWindow < matlab.uitest.TestCase
 
         % --- handleInputRequest ---------------------------------------------
 
+        function tDeleteCleansUpStackListener(testCase)
+            % Destroying a view must dispose of its StackListener so it no
+            % longer responds to events on its (still-alive) Stack. Prior
+            % to the fix, the cleanup was a nested function inside
+            % standardDisplay and never ran.
+            view = statusMgr.view.CommandWindow(testCase.Stack);
+            listener = view.StackListener;
+            testCase.assertTrue(isvalid(listener))
+
+            delete(view);
+
+            testCase.verifyFalse(isvalid(listener))
+        end
+
         function tHandleInputRequestDefaultValues(testCase)
             % HandleInputRequests is true by default.
             testCase.verifyTrue(testCase.CommandWindowView.HandleInputRequests)
@@ -156,6 +173,92 @@ classdef tCommandWindow < matlab.uitest.TestCase
                     s.transitionInputState(statusMgr.StatusType.ValueSupplied, "mock-value");
                 end
             end
+        end
+
+        function tHandleInputRequestUsesReadUserInput(testCase)
+            % CommandWindow's real handleInputRequest reads from stdin via
+            % the readUserInput seam. A subclass that returns a canned
+            % response lets us exercise the full claim/transition path.
+            mock = inttest.helpers.MockCommandWindow(testCase.Stack);
+            testCase.addTeardown(@() delete(mock));
+            mock.Responses = "typed answer";
+
+            % Disable the real (test-fixture) view so the mock claims the
+            % request first and produces a deterministic value.
+            testCase.CommandWindowView.HandleInputRequests = false;
+
+            value = testCase.Stack.requestInput("Enter x", ...
+                DefaultValue="d", Timeout=3);
+
+            testCase.verifyEqual(value, "typed answer")
+        end
+
+        function tHandleInputRequestEmptyInputUsesDefault(testCase)
+            % If readUserInput returns "" the default value is used.
+            mock = inttest.helpers.MockCommandWindow(testCase.Stack);
+            testCase.addTeardown(@() delete(mock));
+            mock.Responses = "";
+
+            testCase.CommandWindowView.HandleInputRequests = false;
+
+            value = testCase.Stack.requestInput("Enter x", ...
+                DefaultValue="defaulted", Timeout=3);
+
+            testCase.verifyEqual(value, "defaulted")
+        end
+
+        function tHandleInputRequestEmptyPromptUsesPlaceholder(testCase)
+            % Empty Message gets replaced with "Enter value" when prompting.
+            mock = inttest.helpers.MockCommandWindow(testCase.Stack);
+            testCase.addTeardown(@() delete(mock));
+            mock.Responses = "ok";
+
+            testCase.CommandWindowView.HandleInputRequests = false;
+
+            value = testCase.Stack.requestInput("", DefaultValue="d", Timeout=3);
+
+            testCase.verifyEqual(value, "ok")
+        end
+
+        function tDisplayErrorWithoutMException(testCase)
+            % Error statuses with non-MException (or empty) Data take the
+            % "Error: <message>" branch instead of the getReport path.
+            diaryFile = testCase.diaryFixture();
+
+            testCase.Stack.addStatus("Error", Message="bare message");
+
+            lines = strjoin(readlines(diaryFile), newline);
+            testCase.verifyTrue(contains(lines, "Error: bare message"));
+        end
+
+        function tWriteToTerminalRepeatedMessagePrintsDot(testCase)
+            % Two consecutive identical messages produce a "." for the
+            % second when ShowRepeatedAsDots is true (the default).
+            diaryFile = testCase.diaryFixture();
+
+            testCase.Stack.addStatus("Info", Message="same");
+            testCase.Stack.addStatus("Info", Message="same");
+            diary off
+
+            lines = strjoin(readlines(diaryFile), newline);
+            testCase.verifyTrue(contains(lines, "same"));
+            testCase.verifyTrue(contains(lines, "."));
+        end
+
+        function tShowRepeatedAsDotsDisabledPrintsFullMessage(testCase)
+            % With ShowRepeatedAsDots=false, a repeated message is printed
+            % in full instead of being collapsed to a dot.
+            testCase.CommandWindowView.ShowRepeatedAsDots = false;
+            diaryFile = testCase.diaryFixture();
+
+            testCase.Stack.addStatus("Info", Message="same");
+            testCase.Stack.addStatus("Info", Message="same");
+            diary off
+
+            lines = readlines(diaryFile);
+            % Expect "same" on at least two separate lines.
+            sameLines = sum(contains(lines, "same"));
+            testCase.verifyGreaterThanOrEqual(sameLines, 2)
         end
 
     end

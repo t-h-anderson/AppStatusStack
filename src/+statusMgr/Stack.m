@@ -11,7 +11,10 @@ classdef Stack < statusMgr.internal.StackInterface
         StackMonitorableListeners
     end
 
-    properties
+    properties (SetAccess = protected)
+        % Use suppressIdentifier / unsuppressIdentifier to mutate. The
+        % setter is protected so callers can read the list but cannot
+        % bypass the de-duplication / removal helpers.
         SuppressedIdentifiers (1,:) string = string.empty(1,0)
     end
 
@@ -30,6 +33,7 @@ classdef Stack < statusMgr.internal.StackInterface
 
         function delete(obj)
             delete(obj.StatusListeners);
+            delete(obj.StackMonitorableListeners);
         end
     end
 
@@ -109,12 +113,11 @@ classdef Stack < statusMgr.internal.StackInterface
         end
 
         function [newStatus, cleanupObj] = add(objs, newStatus, nvp)
-            % Push a new status to the stack
+            % Push a new status onto each stack in objs.
             % [newStatus, cleanupObj] = add(args, newStatus)
             % cleanupObj is an optional output that creates a cleanup object
             % Name value pairs:
-            %   Silent (logical) - whether to notify the Status has
-            %   changed
+            %   Silent (logical) - whether to notify the Status has changed
             arguments
                 objs (1,:) statusMgr.Stack
                 newStatus (1,1) statusMgr.Status
@@ -126,37 +129,22 @@ classdef Stack < statusMgr.internal.StackInterface
                 nvp.CreateCleanupObj = false;
             end
 
-            % Distribute call to each stack
-            if numel(objs) > 1
-                nvpCell = namedargs2cell(nvp);
-                cleanupObj = cell(numel(objs), 1);
-                for i = 1:numel(objs)
-                    [newStatus, cleanupObj{i}] = objs(i).add(newStatus, nvpCell{:});
-                end
-                % newStatus = [newStatus{:}];
-                cleanupObj = [cleanupObj{:}];
-                return
-            elseif isempty(objs)
+            % Empty objs returns an empty Status to keep the contract.
+            if isempty(objs)
                 newStatus = statusMgr.Status.empty(1,0);
-                cleanupObj = onCleanup.empty(1,0);
-                return
             end
 
-            objs.appendStatus(newStatus);
-
-            % Create cleanup object for second argument
-            if nvp.CreateCleanupObj
-                removeStatusFn = @() objs.removeStatus(newStatus);
-                cleanupObj = onCleanup(removeStatusFn);
-            else
-                cleanupObj = {};
+            cleanupObj = onCleanup.empty(1,0);
+            for i = 1:numel(objs)
+                obj = objs(i);
+                obj.appendStatus(newStatus);
+                if nvp.CreateCleanupObj
+                    cleanupObj(end+1) = onCleanup(@() obj.removeStatus(newStatus)); %#ok<AGROW>
+                end
+                if ~nvp.Silent
+                    notify(obj, "StatusUpdated");
+                end
             end
-
-            % Notify that the status has changed
-            if ~nvp.Silent
-                notify(objs, "StatusUpdated");
-            end
-
         end
 
         function [newStatus, cleanupObj] = addError(objs, err, nvp)
@@ -205,50 +193,35 @@ classdef Stack < statusMgr.internal.StackInterface
                 nvp.Value (1,1) double
             end
 
-            % Distribute to each stack
-            if isempty(objs)
-                return
-            elseif numel(objs) > 1
-                for i = 1:numel(objs)
-                    obj = objs(i);
-                    nvpCell = namedargs2cell(nvp);
-                    obj.updateStatus(status, nvpCell{:});
-                end
-                return
-            else
-                obj = objs;
-            end
-
-            % If no current status, nothing to update
-            currentStatus = obj.CurrentStatus;
-            if isempty(currentStatus)
-                return
-            end
-
-            if currentStatus.ID == status.ID
-                % Quickest to just update the current status
-                if isfield(nvp, "Message")
-                    obj.CurrentStatus.updateMessage(nvp.Message);
-                end
-                if isfield(nvp, "Value")
-                    obj.CurrentStatus.updateValue(nvp.Value);
-                end
-                if isfield(nvp, "Message") || isfield(nvp, "Value")
-                    notify(obj, "StatusUpdated");
-                end
-            else
-                % Otherwise find it in the stack. Note we don't issue the
-                % StatusUpdated event in this case because the view
-                % listeners update the views based on the latest status.
-                idx = ([obj.Statuses.ID] == status.ID);
-                if isfield(nvp, "Message")
-                    obj.Statuses(idx).updateMessage(nvp.Message);
-                end
-                if isfield(nvp, "Value")
-                    obj.Statuses(idx).updateValue(nvp.Value);
+            for i = 1:numel(objs)
+                obj = objs(i);
+                % obj.CurrentStatus is guaranteed non-empty by
+                % get.Statuses (which restores an Idle default if the
+                % array is ever cleared).
+                if obj.CurrentStatus.ID == status.ID
+                    % Quickest to just update the current status.
+                    if isfield(nvp, "Message")
+                        obj.CurrentStatus.updateMessage(nvp.Message);
+                    end
+                    if isfield(nvp, "Value")
+                        obj.CurrentStatus.updateValue(nvp.Value);
+                    end
+                    if isfield(nvp, "Message") || isfield(nvp, "Value")
+                        notify(obj, "StatusUpdated");
+                    end
+                else
+                    % Otherwise find it in the stack. We don't issue
+                    % StatusUpdated in this case because views read the
+                    % current (top) status, which hasn't changed.
+                    idx = ([obj.Statuses.ID] == status.ID);
+                    if isfield(nvp, "Message")
+                        obj.Statuses(idx).updateMessage(nvp.Message);
+                    end
+                    if isfield(nvp, "Value")
+                        obj.Statuses(idx).updateValue(nvp.Value);
+                    end
                 end
             end
-
         end
 
     end
@@ -324,7 +297,16 @@ classdef Stack < statusMgr.internal.StackInterface
             obj.StackMonitorableListeners(end+1) = event.listener(monitorable, "StatusChanged", @(s,e) obj.onMonitorableStatusChanged(s,e));
         end
 
-        function varargout = run(obj, fcnHandle, varargin)
+        function varargout = run(obj, fcnHandle, varargin, nvp)
+            % Run a function while pushing a Running status onto the
+            % stack. By default, errors are caught and pushed as Error
+            % statuses, and any warning issued during the call is
+            % pushed as a Warning status.
+            %
+            %   stack.run(@myFcn)
+            %   stack.run(@myFcn, arg1, arg2)
+            %   stack.run(@myFcn, CatchErrors=false)
+            %   stack.run(@myFcn, arg1, arg2, CatchWarnings=false)
             arguments
                 obj (1,1) statusMgr.Stack
                 fcnHandle (1,1) function_handle
@@ -332,23 +314,21 @@ classdef Stack < statusMgr.internal.StackInterface
             arguments (Repeating)
                 varargin
             end
+            arguments
+                nvp.CatchErrors (1,1) logical = true
+                nvp.CatchWarnings (1,1) logical = true
+            end
 
-            % Store warning state and clear lastwarn
-            s = warning();
+            fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", ...
+                "Boundaries", "inclusive");
+            [~, statusCleanup] = obj.addStatus("Running", ...
+                "Message", "Running: " + fcnCallStr); %#ok<ASGLU>
 
-            % Turn the warning back to the original state. NOTE: Assumes
-            % that the function handle didn't change the warn state
-            cObj = onCleanup(@() warning(s));
+            % WarningCapture silences warnings, sets a sentinel via
+            % lastwarn, and restores the prior warning state on delete.
+            captor = statusMgr.util.WarningCapture();
 
-            warning("off");
-            warning(statusMgr.util.uuid, statusMgr.util.uuid);
-            [w0, c0] = lastwarn;
-
-            % Run the code in a try catch block to capture any errors
             try
-                fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", "Boundaries","inclusive");
-                [~, c]= obj.addStatus("Running", ...
-                    "Message", "Running: " + fcnCallStr); %#ok<ASGLU>
                 if nargout > 0
                     varargout = cell(1, nargout);
                     [varargout{:}] = fcnHandle(varargin{:});
@@ -356,14 +336,76 @@ classdef Stack < statusMgr.internal.StackInterface
                     fcnHandle(varargin{:});
                 end
             catch me
+                if ~nvp.CatchErrors
+                    rethrow(me);
+                end
                 obj.addError(me);
             end
 
-            % See if a warning was thrown by the function
-            [w1, c1] = lastwarn;
-            if (~strcmp(w0, w1) || ~strcmp(c0, c1)) ...
-                    && ~strcmp(c1, "MATLAB:callback:error") % Remove "errors" inside callback
-                obj.addStatus("Warning", "Message", w1);
+            if nvp.CatchWarnings
+                [warningMsg, ~] = captor.warning();
+                if warningMsg ~= ""
+                    obj.addStatus("Warning", "Message", warningMsg);
+                end
+            end
+
+        end
+
+        function varargout = runCancellable(obj, fcnHandle, varargin, nvp)
+            % Like run(), but pushes a RunningCancellable status and
+            % passes a CancellationToken as the FIRST argument to
+            % fcnHandle. A cancel-aware view (e.g. Popup) flips the
+            % token's IsCancelled when the user clicks Cancel; user
+            % code is expected to poll the token and bail out.
+            %
+            %   stack.runCancellable(@(token) work(token));
+            %   stack.runCancellable(@(token, x) work(token, x), 42);
+            %
+            % Otherwise behaves identically to run() — same name-value
+            % flags, same warning capture, same status cleanup.
+            arguments
+                obj (1,1) statusMgr.Stack
+                fcnHandle (1,1) function_handle
+            end
+            arguments (Repeating)
+                varargin
+            end
+            arguments
+                nvp.CatchErrors (1,1) logical = true
+                nvp.CatchWarnings (1,1) logical = true
+            end
+
+            token = statusMgr.CancellationToken();
+
+            fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", ...
+                "Boundaries", "inclusive");
+            % The token rides on the status's Data slot so cancel-aware
+            % views can find it without needing a second channel.
+            [~, statusCleanup] = obj.addStatus("RunningCancellable", ...
+                "Message", "Running: " + fcnCallStr, ...
+                "Data", token); %#ok<ASGLU>
+
+            captor = statusMgr.util.WarningCapture();
+
+            try
+                if nargout > 0
+                    varargout = cell(1, nargout);
+                    [varargout{:}] = fcnHandle(token, varargin{:});
+                else
+                    fcnHandle(token, varargin{:});
+                end
+            catch me
+                if ~nvp.CatchErrors
+                    rethrow(me);
+                end
+                obj.addError(me);
+            end
+
+            if nvp.CatchWarnings
+                [warningMsg, ~] = captor.warning();
+                if warningMsg ~= ""
+                    obj.addStatus("Warning", "Message", warningMsg);
+                end
             end
 
         end
@@ -395,26 +437,25 @@ classdef Stack < statusMgr.internal.StackInterface
                 Data=nvp.DefaultValue);
             cleanupStatus = onCleanup(@() obj.removeStatus(status)); %#ok<NASGU>
 
-            % Poll until a view claims the request or the timeout expires.
-            t = tic;
-            while status.Type == statusMgr.StatusType.RequestingInput ...
-                    && toc(t) < nvp.Timeout
-                drawnow;
-                pause(0.05);
-            end
+            % If no view has claimed the request after Timeout seconds,
+            % auto-resolve with the default value. The handler is a no-op
+            % once the status has already been resolved (IsComplete=true)
+            % or a view has claimed it (Type=AwaitingInput).
+            weakStatus = matlab.lang.WeakReference(status);
+            timeoutTimer = timer( ...
+                "StartDelay", nvp.Timeout, ...
+                "ExecutionMode", "singleShot", ...
+                "TimerFcn", @(~,~) statusMgr.Stack.resolveOnTimeout(weakStatus, nvp.DefaultValue));
+            cleanupTimer = onCleanup(@() statusMgr.util.stopTimer(timeoutTimer)); %#ok<NASGU>
+            start(timeoutTimer);
 
-            % Nobody claimed it in time — return the default.
-            if status.Type == statusMgr.StatusType.RequestingInput
-                value = nvp.DefaultValue;
-                return;
-            end
-
-            % A view claimed it; wait indefinitely for ValueSupplied.
-            % Also exit if the status is forcibly removed (IsComplete=true)
-            % to avoid an infinite loop when no ValueSupplied transition occurs.
-            while status.Type == statusMgr.StatusType.AwaitingInput && ~status.IsComplete
-                drawnow;
-                pause(0.05);
+            % Block until the status is resolved. A view supplying a value
+            % via transitionInputState(ValueSupplied) sets IsComplete=true,
+            % as does external completion (e.g. removeAllStatuses) and the
+            % timeout above. waitfor yields to the event loop while it
+            % blocks, so timers and UI callbacks still fire.
+            if ~status.IsComplete
+                waitfor(status, "IsComplete", true);
             end
 
             if status.Type == statusMgr.StatusType.ValueSupplied
@@ -429,6 +470,17 @@ classdef Stack < statusMgr.internal.StackInterface
     methods % Suppression
 
         function suppressIdentifier(obj, id)
+            % Hide statuses whose Identifier matches `id`.
+            %
+            %   stack.suppressIdentifier("myapp:network:timeout")
+            %   stack.suppressIdentifier("myapp:network:*")  % glob
+            %   stack.suppressIdentifier("*:timeout")
+            %
+            % `id` is matched against each new status's Identifier as
+            % a glob: `*` matches any run of characters (including
+            % none); other characters match literally. A status with
+            % a matching identifier is added to the stack with
+            % IsVisible=false so views skip displaying it.
             arguments
                 obj (1,1) statusMgr.Stack
                 id (1,1) string
@@ -439,11 +491,33 @@ classdef Stack < statusMgr.internal.StackInterface
         end
 
         function unsuppressIdentifier(obj, id)
+            % Remove an exact `id` from the suppression list. The
+            % string must match a previously-added entry exactly
+            % (including any wildcards).
             arguments
                 obj (1,1) statusMgr.Stack
                 id (1,1) string
             end
             obj.SuppressedIdentifiers(obj.SuppressedIdentifiers == id) = [];
+        end
+
+        function tf = isIdentifierSuppressed(obj, identifier)
+            % True if `identifier` matches any entry in
+            % SuppressedIdentifiers (treating each entry as a glob).
+            arguments
+                obj (1,1) statusMgr.Stack
+                identifier (1,1) string
+            end
+            tf = false;
+            if identifier == "" || isempty(obj.SuppressedIdentifiers)
+                return
+            end
+            for sup = obj.SuppressedIdentifiers
+                if statusMgr.Stack.globMatches(identifier, sup)
+                    tf = true;
+                    return
+                end
+            end
         end
 
     end
@@ -463,13 +537,21 @@ classdef Stack < statusMgr.internal.StackInterface
 
         function appendStatus(obj, newStatus)
 
-            % Remove previous status if temporary
-            while obj.CurrentStatus.IsTemporary
+            % Pop any temporary statuses currently on top of the stack.
+            % Cap iterations at the stack depth: we can never need to
+            % pop more entries than exist, and the cap is a safety net
+            % against an invariant violation (e.g. if the default Idle
+            % were ever marked IsTemporary by a future change, this
+            % loop would otherwise spin forever).
+            for i = 1:numel(obj.Statuses)
+                if ~obj.CurrentStatus.IsTemporary
+                    break
+                end
                 obj.removeLastStatus(Silent=true);
             end
 
-            % Hide status if its identifier is suppressed
-            if newStatus.Identifier ~= "" && ismember(newStatus.Identifier, obj.SuppressedIdentifiers)
+            % Hide status if its identifier is suppressed.
+            if newStatus.Identifier ~= "" && obj.isIdentifierSuppressed(newStatus.Identifier)
                 newStatus.IsVisible = false;
             end
 
@@ -486,6 +568,40 @@ classdef Stack < statusMgr.internal.StackInterface
         function onMonitorableStatusChanged(obj, s, e)
             status = e.Status;
             obj.add(status);
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function tf = globMatches(identifier, glob)
+            % Glob match: `*` is any-run-of-characters; other chars
+            % match literally. No `*` in `glob` means an exact match.
+            if ~contains(glob, "*")
+                tf = identifier == glob;
+                return
+            end
+            parts = split(glob, "*");
+            p = parts(1);
+            for i = 2:numel(parts)
+                p = p + wildcardPattern + parts(i);
+            end
+            tf = matches(identifier, p);
+        end
+
+        function resolveOnTimeout(weakStatus, defaultValue)
+            % requestInput timeout handler. Resolves with the default
+            % value only if no view has claimed the request yet
+            % (Type still RequestingInput). If a view has claimed
+            % (AwaitingInput), the wait is unbounded by design.
+            s = weakStatus.Handle;
+            if isempty(s) || ~isvalid(s) || s.IsComplete
+                return
+            end
+            if s.Type == statusMgr.StatusType.RequestingInput
+                s.transitionInputState( ...
+                    statusMgr.StatusType.ValueSupplied, defaultValue);
+            end
         end
 
     end

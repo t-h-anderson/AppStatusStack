@@ -116,6 +116,73 @@ classdef tStatus < matlab.unittest.TestCase
             testCase.verifyEqual(stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
+        function tDeleteArrayFiresCompletedForAllElements(testCase)
+            % Deleting a Status array calls delete(objs) once with the
+            % whole array. Each not-yet-complete element must fire its
+            % Completed event — the per-element loop in delete() ensures
+            % a single dead/torn-down element cannot short-circuit the
+            % rest.
+            S1 = statusMgr.Status("Running");
+            S2 = statusMgr.Status("Running");
+            S3 = statusMgr.Status("Running");
+
+            firedIds = strings(0,1);
+            l1 = event.listener(S1, "Completed", @(s,~) appendId(s));
+            l2 = event.listener(S2, "Completed", @(s,~) appendId(s));
+            l3 = event.listener(S3, "Completed", @(s,~) appendId(s));
+            testCase.addTeardown(@() delete([l1 l2 l3]));
+
+            delete([S1 S2 S3]);
+
+            testCase.verifyNumElements(firedIds, 3)
+
+            function appendId(s)
+                firedIds(end+1,1) = s.ID;
+            end
+        end
+
+        function tDeleteArrayWithDestroyedSiblingExercisesCatch(testCase)
+            % Pre-deleting one element makes property access throw on it
+            % during the array delete. The per-element try/catch must
+            % swallow that and still notify the surviving sibling.
+            S1 = statusMgr.Status("Running");
+            S2 = statusMgr.Status("Running");
+            delete(S1);
+            testCase.assertFalse(isvalid(S1))
+
+            count = 0;
+            l2 = event.listener(S2, "Completed", @(~,~) bump());
+            testCase.addTeardown(@() delete(l2));
+
+            delete([S1 S2]);
+
+            testCase.verifyEqual(count, 1)
+
+            function bump()
+                count = count + 1;
+            end
+        end
+
+        function tDeleteArraySkipsAlreadyCompleteElements(testCase)
+            % Already-complete statuses don't re-fire Completed when the
+            % array is deleted; only the still-open ones do.
+            S1 = statusMgr.Status("Running");
+            S2 = statusMgr.Status("Running");
+            S1.complete();
+
+            count = 0;
+            l2 = event.listener(S2, "Completed", @(~,~) bump());
+            testCase.addTeardown(@() delete(l2));
+
+            delete([S1 S2]);
+
+            testCase.verifyEqual(count, 1)
+
+            function bump()
+                count = count + 1;
+            end
+        end
+
     end
 
 

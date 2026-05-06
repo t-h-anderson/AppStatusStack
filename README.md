@@ -70,7 +70,24 @@ stack.removeStatus(status);
 **4. Capture errors and warnings automatically**
 
 ```matlab
-result = stack.run(@myFunction);   % Running → clears on success, Error on failure
+result = stack.run(@myFunction);                 % Running → clears on success, Error on failure
+result = stack.run(@myFunction, CatchErrors=false); % rethrow instead of capturing
+```
+
+**5. Cooperative cancellation**
+
+```matlab
+% A CancellationToken is passed as the FIRST argument; user code polls
+% it and bails out gracefully when a cancel-aware view (e.g. the Popup
+% progress dialog Cancel button) trips it.
+stack.runCancellable(@(token) doWork(token));
+
+function doWork(token)
+    for i = 1:N
+        if token.IsCancellationRequested(); return; end
+        % ... do step i ...
+    end
+end
 ```
 
 ### Available status types
@@ -90,9 +107,16 @@ result = stack.run(@myFunction);   % Running → clears on success, Error on fai
 - **Stack semantics** — statuses stack; removing the top status reveals the one beneath, so nested operations compose naturally.
 - **Multiple views** — attach as many views as needed to the same stack; each updates independently.
 - **Array stacks** — broadcast a status to several stacks at once: `[stack1, stack2].addStatus("Running")`.
-- **Suppression** — hide specific identifiers without removing them: `stack.suppressIdentifier("my:warning:id")`.
+- **Suppression** — hide specific identifiers without removing them. Exact match or glob patterns:
+  ```matlab
+  stack.suppressIdentifier("my:warning:id")    % exact
+  stack.suppressIdentifier("myapp:network:*")  % any identifier with that prefix
+  stack.suppressIdentifier("*timeout*")        % anywhere
+  ```
 - **Monitorable classes** — any class that extends `statusMgr.monitorable.Monitorable` can emit statuses that are automatically forwarded to a watching stack.
 - **User input** — request a string from the user through whichever view is active, with a timeout and default fallback.
+- **Cancellation** — `stack.runCancellable(@(token) work(token))` provides a cooperative cancellation token; cancel-aware views flip it, user code polls.
+- **Recording view** — `statusMgr.view.RecordingView` captures every status it sees into a `RecordedStatuses` array, useful for activity logs in apps and assertions in tests.
 
 ## Examples
 

@@ -334,6 +334,45 @@ classdef tStack < matlab.unittest.TestCase
             testCase.verifyEmpty(S.SuppressedIdentifiers)
         end
 
+        function tSuppressGlobMatchesNamespacePrefix(testCase)
+            % "myapp:net:*" matches any identifier with that prefix.
+            S = statusMgr.Stack();
+            S.suppressIdentifier("myapp:net:*");
+
+            S.addStatus("Warning", Identifier="myapp:net:timeout", Message="hidden");
+            S.addStatus("Warning", Identifier="myapp:db:slow", Message="visible");
+
+            testCase.verifyFalse(S.Statuses(2).IsVisible)
+            testCase.verifyTrue(S.Statuses(3).IsVisible)
+        end
+
+        function tSuppressGlobMatchesAnywhere(testCase)
+            % "*timeout*" matches an identifier containing "timeout".
+            S = statusMgr.Stack();
+            S.suppressIdentifier("*timeout*");
+
+            S.addStatus("Warning", Identifier="myapp:net:timeout", Message="hidden");
+            S.addStatus("Warning", Identifier="other:timeout:detail", Message="hidden");
+            S.addStatus("Warning", Identifier="unrelated", Message="visible");
+
+            testCase.verifyFalse(S.Statuses(2).IsVisible)
+            testCase.verifyFalse(S.Statuses(3).IsVisible)
+            testCase.verifyTrue(S.Statuses(4).IsVisible)
+        end
+
+        function tSuppressGlobLiteralStringStillWorks(testCase)
+            % Adding an identifier without "*" continues to require an
+            % exact match (backward-compatible behaviour).
+            S = statusMgr.Stack();
+            S.suppressIdentifier("a:b");
+
+            S.addStatus("Warning", Identifier="a:b", Message="hidden");
+            S.addStatus("Warning", Identifier="a:b:c", Message="visible");
+
+            testCase.verifyFalse(S.Statuses(2).IsVisible)
+            testCase.verifyTrue(S.Statuses(3).IsVisible)
+        end
+
         function tSuppressDoesNotAffectNoIdentifier(testCase)
             % Statuses with no identifier are never affected by suppression.
             S = statusMgr.Stack();
@@ -358,6 +397,15 @@ classdef tStack < matlab.unittest.TestCase
         end
 
         % --- requestInput ---------------------------------------------------
+
+        function tRequestInputNoArgsUsesEmptyPromptAndDefaults(testCase)
+            % Calling requestInput() with no arguments applies the prompt,
+            % DefaultValue, Title, and Timeout defaults.
+            S = statusMgr.Stack();
+            value = S.requestInput();
+
+            testCase.verifyEqual(value, "")
+        end
 
         function tRequestInputReturnsDefaultWhenNoViewAttached(testCase)
             % With no views listening, requestInput returns DefaultValue
@@ -442,6 +490,109 @@ classdef tStack < matlab.unittest.TestCase
             testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
+        function tRunCatchErrorsFalseRethrows(testCase)
+            % With CatchErrors=false, errors raised inside fcn propagate
+            % to the caller instead of being captured as an Error status.
+            % The Running status is still cleaned up on the way out via
+            % its onCleanup, so the stack returns to Idle.
+            S = statusMgr.Stack();
+
+            testCase.verifyError( ...
+                @() S.run(@() error("test:err", "boom"), CatchErrors=false), ...
+                "test:err")
+            testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Idle)
+        end
+
+        function tRunCatchWarningsFalseSkipsWarningStatus(testCase)
+            % With CatchWarnings=false, warnings raised inside fcn do not
+            % become Warning statuses on the stack.
+            S = statusMgr.Stack();
+
+            S.run(@() warning("test:w", "hi"), CatchWarnings=false);
+
+            testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Idle)
+        end
+
+        function tRunCancellablePassesTokenAsFirstArg(testCase)
+            % The wrapped function receives a CancellationToken as its
+            % first argument; subsequent positional args from the call
+            % site are appended after.
+            S = statusMgr.Stack();
+            seenToken = [];
+            seenArgs = {};
+
+            S.runCancellable(@(token, a, b) capture(token, a, b), 3, 4);
+
+            testCase.assertClass(seenToken, "statusMgr.CancellationToken")
+            testCase.verifyEqual(seenArgs, {3, 4})
+
+            function capture(token, a, b)
+                seenToken = token;
+                seenArgs = {a, b};
+            end
+        end
+
+        function tRunCancellablePushesRunningCancellableStatus(testCase)
+            % While the function runs, the current status is
+            % RunningCancellable and its Data is the token.
+            S = statusMgr.Stack();
+            tokenAtRunTime = [];
+            typeAtRunTime = [];
+
+            S.runCancellable(@(token) capture(token));
+
+            testCase.assertClass(tokenAtRunTime, "statusMgr.CancellationToken")
+            testCase.verifyEqual(typeAtRunTime, statusMgr.StatusType.RunningCancellable)
+            testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Idle)
+
+            function capture(token)
+                tokenAtRunTime = token;
+                typeAtRunTime = S.CurrentStatus.Type;
+            end
+        end
+
+        function tRunCancellableTokenObservedByPolling(testCase)
+            % If something cancels the token while the function is
+            % running, the function can poll the token and exit early.
+            S = statusMgr.Stack();
+            iterationsBeforeCancel = 0;
+
+            S.runCancellable(@(token) loopUntilCancel(token));
+
+            testCase.verifyGreaterThan(iterationsBeforeCancel, 0)
+            testCase.verifyLessThan(iterationsBeforeCancel, 100)
+
+            function loopUntilCancel(token)
+                for i = 1:100
+                    if i == 5
+                        % Simulate a view/external trigger calling cancel.
+                        token.cancel();
+                    end
+                    if token.IsCancellationRequested()
+                        iterationsBeforeCancel = i;
+                        return
+                    end
+                end
+            end
+        end
+
+        function tRunCancellableThrowIfCancellationRequestedRaises(testCase)
+            % throwIfCancellationRequested raises statusMgr:cancelled
+            % once the token has been cancelled. With CatchErrors=true
+            % (default) this becomes an Error status.
+            S = statusMgr.Stack();
+
+            S.runCancellable(@(token) throwAfterCancel(token));
+
+            testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Error)
+            testCase.verifyEqual(S.CurrentStatus.Identifier, "statusMgr:cancelled")
+
+            function throwAfterCancel(token)
+                token.cancel();
+                token.throwIfCancellationRequested();
+            end
+        end
+
         function tRemoveStatusFromMultipleStacks(testCase)
             % removeStatus on a stack array removes the status from every stack.
             S1 = statusMgr.Stack();
@@ -456,6 +607,46 @@ classdef tStack < matlab.unittest.TestCase
             testCase.verifySize(S2.Statuses, [1 1])
             testCase.verifyEqual(S2.CurrentStatus.Type, statusMgr.StatusType.Idle)
             testCase.verifyTrue(status.IsComplete)
+        end
+
+        function tAddStatusCleanupObjFalseReturnsOnCleanupType(testCase)
+            % When CreateCleanupObj=false, the second output is an empty
+            % onCleanup (consistent with the empty-stack branch), not a cell.
+            S = statusMgr.Stack();
+            [~, cleanupObj] = S.addStatus("Warning", CreateCleanupObj=false);
+
+            testCase.verifyClass(cleanupObj, "onCleanup")
+            testCase.verifyEmpty(cleanupObj)
+        end
+
+        function tStackDeleteCleansUpMonitorableListeners(testCase)
+            % Stack.delete must dispose of StackMonitorableListeners as well
+            % as StatusListeners; otherwise monitorable listeners leak.
+            S = statusMgr.Stack();
+            obj = statusMgr.demo.Monitorable;
+            S.monitor(obj);
+
+            listeners = S.StackMonitorableListeners;
+            testCase.assertNotEmpty(listeners)
+            testCase.assertTrue(all(isvalid(listeners)))
+
+            delete(S);
+
+            testCase.verifyFalse(any(isvalid(listeners)))
+        end
+
+        function tStackDeleteCleansUpStatusListeners(testCase)
+            % Companion check for the existing StatusListeners cleanup.
+            S = statusMgr.Stack();
+            S.addStatus("Running");
+
+            listeners = S.StatusListeners;
+            testCase.assertNotEmpty(listeners)
+            testCase.assertTrue(all(isvalid(listeners)))
+
+            delete(S);
+
+            testCase.verifyFalse(any(isvalid(listeners)))
         end
 
         function tRequestInputStatusPushedWithCorrectProperties(testCase)

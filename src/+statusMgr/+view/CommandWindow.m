@@ -1,14 +1,15 @@
-classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
+classdef CommandWindow < statusMgr.internal.view.StatusViewBase
     %CommandWindow View a status Stack in the command window
 
     properties (SetAccess = protected)
-        Stack = statusMgr.Stack.empty(1,0)
-        StackListener
         RunningTimer timer
     end
 
     properties
         PreviousMessage (1,1) string = string(NaN)
+        % When true, an identical successive message is replaced by a
+        % single "." to indicate progress without spamming the terminal.
+        ShowRepeatedAsDots (1,1) logical = true
     end
 
     methods
@@ -22,6 +23,7 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
                 nvp.ShowRunning (1,1) logical = true
                 nvp.ShowSuccess (1,1) logical = true
                 nvp.ShowIdle (1,1) logical = false
+                nvp.ShowRepeatedAsDots (1,1) logical = true
             end
 
             % Set view parent and stack properties
@@ -71,8 +73,11 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
         end % displayRunning
 
         function clearRunning(obj)
+            % Stop the auto-progress dot timer set up by displayRunning.
+            % PreviousMessage is intentionally NOT reset here: that
+            % belongs to writeToTerminal's repeated-message tracking,
+            % which is independent of the running-progress timer.
             statusMgr.util.stopTimer(obj.RunningTimer);
-            obj.PreviousMessage = string(NaN);
         end
 
         function displayError(obj, status)
@@ -140,12 +145,18 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
             if prompt == "", prompt = "Enter value"; end
             defaultVal = string(status.Data);
 
-            raw = string(input(prompt + ": ", "s"));
+            raw = obj.readUserInput(prompt + ": ");
             if raw == ""
                 raw = defaultVal;
             end
 
             status.transitionInputState(statusMgr.StatusType.ValueSupplied, raw);
+        end
+
+        function raw = readUserInput(~, prompt)
+            % Read a single line from stdin. Extracted as a seam so tests
+            % can subclass and override without monkey-patching `input`.
+            raw = string(input(prompt, "s"));
         end
 
         function writeToTerminal(obj, message, id)
@@ -154,13 +165,13 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewInterface
                 message (1,1) string
                 id (1,1) double {mustBeMember(id, [1,2])} = 1 % 1 for normal, 2 for error
             end
-            if message ~= obj.PreviousMessage
-                % Only display the message if it's different from the
-                % previous one to avoid spamming
+            if message ~= obj.PreviousMessage || ~obj.ShowRepeatedAsDots
+                % First time we've seen this message (or the toggle is
+                % off): print it on its own line.
                 fprintf(id, message + "\n");
             else
-                % Otherwise print a dot for repeated messages to indicate 
-                % a repeating message
+                % Same message as last time: collapse to a single "."
+                % so successive identical updates don't spam the terminal.
                 fprintf(".");
             end
             obj.PreviousMessage = message;
