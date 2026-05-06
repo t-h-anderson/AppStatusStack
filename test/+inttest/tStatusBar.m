@@ -157,17 +157,24 @@ classdef tStatusBar < matlab.uitest.TestCase
             testCase.verifyFalse(testCase.Bar.Popout.IsOpen)
         end
 
-        function tDetailsButtonTogglesPopout(testCase)
-            % First click of the Details button opens the popout;
-            % second click closes it.
+        function tPopoutContentIsFullMessage(testCase)
+            % The Popout shows the full status.Message even when the
+            % bar's MessageLabel is showing the short version. Drive
+            % the Popout via its API rather than testCase.press —
+            % the Details button uses Popout.Trigger="click" rather
+            % than ButtonPushedFcn (so the Popout's own click handler
+            % isn't fought with our toggle), which the uitest harness
+            % doesn't simulate.
             testCase.Stack.addStatus("Error", ...
                 Message="long detail text", MessageShort="short");
 
-            testCase.assertFalse(testCase.Bar.Popout.IsOpen)
-            testCase.press(testCase.Bar.DetailsButton);
+            testCase.assertEqual(string(testCase.Bar.MessageLabel.Text), "short")
+            testCase.assertEqual(string(testCase.Bar.PopoutLabel.Text), "long detail text")
+
+            testCase.Bar.Popout.open();
             testCase.verifyTrue(testCase.Bar.Popout.IsOpen)
 
-            testCase.press(testCase.Bar.DetailsButton);
+            testCase.Bar.Popout.close();
             testCase.verifyFalse(testCase.Bar.Popout.IsOpen)
         end
 

@@ -126,18 +126,18 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
                 "ButtonPushedFcn", @(~,~) obj.onCancelClicked());
             obj.CancelButton.Layout.Column = 3;
 
-            % Details button: small, opens/closes the Popout that
-            % shows the full status.Message. Visible only when the
-            % current status has details worth showing (Error /
-            % Warning / Success). The button drives the Popout via
-            % an explicit toggle callback rather than Popout's own
-            % Trigger="click" mechanism — that way the test suite
-            % (and any programmatic driver) can drive the open/close
-            % via standard ButtonPushedFcn semantics.
+            % Details button: small, opens the Popout that shows the
+            % full status.Message. Visible only when the current
+            % status has details worth showing (Error / Warning /
+            % Success). The Popout's own Trigger="click" mechanism
+            % handles the click — we don't add a ButtonPushedFcn,
+            % because layering our own toggle on top fights the
+            % Popout's built-in click-outside-to-close behaviour
+            % (clicking the trigger button is treated as "outside",
+            % which would close-then-reopen).
             obj.DetailsButton = uibutton(obj.Layout, ...
                 "Text", "...", ...
-                "Visible", "off", ...
-                "ButtonPushedFcn", @(~,~) obj.toggleDetailsPopout());
+                "Visible", "off");
             obj.DetailsButton.Layout.Column = 4;
 
             obj.OkButton = uibutton(obj.Layout, ...
@@ -147,35 +147,31 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             obj.OkButton.Layout.Column = 5;
 
             % Popout for showing the full status.Message. Anchored to
-            % the Details button. Trigger="manual" because the button's
-            % ButtonPushedFcn opens/closes it explicitly. An explicit
-            % Position is required: without it the popout's preferred
-            % size depends on its content at construction time (empty
-            % here) and ends up too small for typical error reports.
+            % the Details button with Trigger="click" — clicking the
+            % button opens the popout, clicking outside closes it.
+            % An explicit Position is required: without it the
+            % popout's preferred size depends on its content at
+            % construction time (empty here) and ends up too small
+            % for typical error reports.
             obj.Popout = matlab.ui.container.internal.Popout( ...
                 "Target", obj.DetailsButton, ...
-                "Trigger", "manual", ...
+                "Trigger", "click", ...
                 "Placement", "auto", ...
                 "Position", [0, 0, obj.PopoutSize(1), obj.PopoutSize(2)]);
+            % RowHeight and ColumnWidth of "1x" make the inner uilabel
+            % fill the popout's interior. Without explicit sizing the
+            % grid defaults to "fit", which collapses to zero height
+            % when the label's WordWrap content is initially empty —
+            % so the text never appears even after Text is set later.
             popoutGrid = uigridlayout(obj.Popout, [1, 1], ...
-                "Padding", [8, 8, 8, 8]);
+                "Padding", [8, 8, 8, 8], ...
+                "RowHeight", {"1x"}, ...
+                "ColumnWidth", {"1x"});
             obj.PopoutLabel = uilabel(popoutGrid, ...
                 "Text", "", ...
-                "WordWrap", "on");
-        end
-
-        function toggleDetailsPopout(obj)
-            % Open the popout if closed; close it if open. Wired to
-            % the Details button's ButtonPushedFcn so a single click
-            % flips the state.
-            if isempty(obj.Popout) || ~isvalid(obj.Popout)
-                return
-            end
-            if obj.Popout.IsOpen
-                obj.Popout.close();
-            else
-                obj.Popout.open();
-            end
+                "WordWrap", "on", ...
+                "VerticalAlignment", "top", ...
+                "HorizontalAlignment", "left");
         end
 
         function onCancelClicked(obj)
