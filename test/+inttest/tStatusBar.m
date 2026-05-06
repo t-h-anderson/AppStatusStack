@@ -164,12 +164,12 @@ classdef tStatusBar < matlab.uitest.TestCase
             % IsOpen is updated by PopoutController via an async
             % client round-trip, so poll rather than asserting
             % synchronously.
-            tStatusBar.waitForPopoutState(testCase.Bar.Popout, true);
+            inttest.tStatusBar.waitForPopoutState(testCase.Bar.Popout, true);
             testCase.assertTrue(testCase.Bar.Popout.IsOpen)
 
             testCase.press(testCase.Bar.OkButton);
 
-            tStatusBar.waitForPopoutState(testCase.Bar.Popout, false);
+            inttest.tStatusBar.waitForPopoutState(testCase.Bar.Popout, false);
             testCase.verifyFalse(testCase.Bar.Popout.IsOpen)
         end
 
@@ -189,11 +189,11 @@ classdef tStatusBar < matlab.uitest.TestCase
             % open() is called.
             drawnow;
             testCase.Bar.Popout.open();
-            tStatusBar.waitForPopoutState(testCase.Bar.Popout, true);
+            inttest.tStatusBar.waitForPopoutState(testCase.Bar.Popout, true);
             testCase.verifyTrue(testCase.Bar.Popout.IsOpen)
 
             testCase.Bar.Popout.close();
-            tStatusBar.waitForPopoutState(testCase.Bar.Popout, false);
+            inttest.tStatusBar.waitForPopoutState(testCase.Bar.Popout, false);
             testCase.verifyFalse(testCase.Bar.Popout.IsOpen)
         end
 
