@@ -161,10 +161,15 @@ classdef tStatusBar < matlab.uitest.TestCase
             % GraphicsPlaceholder and open() errors.
             drawnow;
             testCase.Bar.Popout.open();
+            % IsOpen is updated by PopoutController via an async
+            % client round-trip, so poll rather than asserting
+            % synchronously.
+            tStatusBar.waitForPopoutState(testCase.Bar.Popout, true);
             testCase.assertTrue(testCase.Bar.Popout.IsOpen)
 
             testCase.press(testCase.Bar.OkButton);
 
+            tStatusBar.waitForPopoutState(testCase.Bar.Popout, false);
             testCase.verifyFalse(testCase.Bar.Popout.IsOpen)
         end
 
@@ -184,9 +189,11 @@ classdef tStatusBar < matlab.uitest.TestCase
             % open() is called.
             drawnow;
             testCase.Bar.Popout.open();
+            tStatusBar.waitForPopoutState(testCase.Bar.Popout, true);
             testCase.verifyTrue(testCase.Bar.Popout.IsOpen)
 
             testCase.Bar.Popout.close();
+            tStatusBar.waitForPopoutState(testCase.Bar.Popout, false);
             testCase.verifyFalse(testCase.Bar.Popout.IsOpen)
         end
 
@@ -267,6 +274,22 @@ classdef tStatusBar < matlab.uitest.TestCase
             delete(bar);
 
             testCase.verifyFalse(isvalid(layout))
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function waitForPopoutState(popout, target)
+            % Poll until Popout.IsOpen reaches target (or 1 s elapses).
+            % IsOpen is set by the PopoutController via an async
+            % client round-trip, so it's not reliably true/false at
+            % the instant open()/close() returns.
+            deadline = tic;
+            while popout.IsOpen ~= target && toc(deadline) < 1
+                drawnow;
+                pause(0.05);
+            end
         end
 
     end
