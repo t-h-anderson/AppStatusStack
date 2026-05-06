@@ -1,1 +1,4 @@
 *.asv
+
+# CI test artifacts
+test-results/
