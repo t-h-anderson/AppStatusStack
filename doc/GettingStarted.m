@@ -138,6 +138,29 @@ myStack.run(@() warning("mywarn:test","hello world warning")); %[output:0446e47d
 %[text] FileLog accepts a JSON-lines format and a byte-cap that rotates the log when it grows past MaxBytes. Rotation appends "_N" before the file extension, e.g. Log.txt → Log_1.txt → Log_2.txt.
 % statusMgr.view.FileLog(myStack, LogFolder=pwd, ...
 %     Format="json-lines", MaxBytes=1e6);
+%%
+%[text] ## Background work via parfeval
+%[text] runInBackground launches a parfeval future on the backgroundPool, pushes a RunningCancellable status, and converts the future's terminal state into either status completion (success) or an Error status (failure). The StatusBar's Cancel button cancels the future. For streaming progress, pass a parallel.pool.DataQueue to both the worker (which calls send) and runInBackground (which calls afterEach internally to update the status):
+% q = parallel.pool.DataQueue;
+% [future, status] = myStack.runInBackground(@workerFcn, ...
+%     Args={q, x, y}, NumOutputs=1, ...
+%     Message="Crunching numbers", ProgressQueue=q);
+%
+% function out = workerFcn(q, x, y)
+%     for i = 1:100
+%         send(q, i/100);          % numeric -> Value
+%         % send(q, "Step " + i)    % string  -> Message
+%         % send(q, struct(Value=i/100, Message="Step " + i))
+%     end
+%     out = doFinalWork(x, y);
+% end
+%
+% % Fetch the result when ready (blocks):
+% result = fetchOutputs(future);
+%
+% % Or monitor a future you launched yourself:
+% f = parfeval(backgroundPool, @longJob, 1, x);
+% myStack.monitorFuture(f, Message="Long job");
 %[appendix]{"version":"1.0"}
 %---
 %[metadata:view]

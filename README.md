@@ -94,6 +94,37 @@ function doWork(status)
 end
 ```
 
+**6. Background work (parfeval + DataQueue)**
+
+```matlab
+% Convenience: parfeval on the backgroundPool and monitor the future.
+[future, status] = stack.runInBackground(@myFcn, ...
+    Args={a, b}, NumOutputs=1, Message="Loading data");
+
+% Status is RunningCancellable while the future runs; the StatusBar's
+% Cancel button cancels the future. fetchOutputs gets the result.
+result = fetchOutputs(future);
+
+% Streaming progress: pass a DataQueue both to your worker (so it can
+% send updates) and to runInBackground (so the monitor can listen).
+q = parallel.pool.DataQueue;
+stack.runInBackground(@workerWithProgress, ...
+    Args={q, x}, ProgressQueue=q);
+
+function out = workerWithProgress(q, x)
+    for i = 1:N
+        send(q, i/N);    % numeric → status Value
+        % ... or: send(q, "Step " + i)         % string → Message
+        % ... or: send(q, struct(Value=i/N, Message="Step " + i))
+    end
+    out = ...;
+end
+
+% Or monitor a future you already have:
+future = parfeval(backgroundPool, @longJob, 1, x);
+stack.monitorFuture(future, Message="Long job");
+```
+
 ### Available status types
 
 | Type | Popup view behaviour |
@@ -121,6 +152,7 @@ end
 - **User input** — request a string from the user through whichever view is active, with a timeout and default fallback.
 - **Cancellation** — `stack.runCancellable(@(status) work(status))` runs work cooperatively; cancel-aware views call `status.complete()`, user code polls `status.IsComplete` (or calls `status.throwIfComplete()` for error-style propagation).
 - **Recording view** — `statusMgr.view.RecordingView` captures every status it sees into a `RecordedStatuses` array, useful for activity logs in apps and assertions in tests.
+- **Background work** — `stack.runInBackground(@fcn, ...)` launches a `parfeval` future, pushes a `RunningCancellable` status, streams progress through a `DataQueue`, and converts failures into Error statuses. Cancel-aware views cancel the future. Or use `stack.monitorFuture(future)` for a future you already have.
 - **Per-view filters** — every view supports `IncludeIdentifiers` / `ExcludeIdentifiers` glob lists that complement the stack-level `suppressIdentifier`. Have a CommandWindow show only `myapp:debug:*` while a FileLog records everything.
 - **Structured / rotating logs** — `FileLog` accepts `Format="json-lines"` for one-JSON-object-per-line output, and `MaxBytes` triggers rotation (`Log.txt` → `Log_1.txt`) when the file would otherwise grow without bound.
 
