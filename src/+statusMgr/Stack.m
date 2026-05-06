@@ -297,6 +297,115 @@ classdef Stack < statusMgr.internal.StackInterface
             obj.StackMonitorableListeners(end+1) = event.listener(monitorable, "StatusChanged", @(s,e) obj.onMonitorableStatusChanged(s,e));
         end
 
+        function status = monitorFuture(obj, future, nvp)
+            % Push a status that mirrors a parallel.Future's lifecycle.
+            %
+            %   status = stack.monitorFuture(future)
+            %   status = stack.monitorFuture(future, ProgressQueue=q, ...)
+            %
+            % The returned Status is held on the stack as
+            % RunningCancellable (or Running, if Cancellable=false)
+            % while the future is queued or running. When the future
+            % finishes the status is completed; if it failed,
+            % future.Error is converted into an Error status. If user
+            % code completes the status (e.g. via the StatusBar Cancel
+            % button) the future is cancelled.
+            %
+            % Progress updates: pass an optional parallel.pool.DataQueue
+            % that the worker calls send() on. Numeric scalars set the
+            % status's Value; strings update Message; structs with
+            % Value/Message fields update both.
+            %
+            % Terminal detection uses a periodic poll (PollPeriod
+            % seconds, default 0.5) on future.State so we catch both
+            % success and failure uniformly — afterEach/afterAll fire
+            % only on success.
+            arguments
+                obj (1,1) statusMgr.Stack
+                future (1,1) parallel.Future
+                nvp.Message (1,1) string = ""
+                nvp.Cancellable (1,1) logical = true
+                nvp.ProgressQueue = parallel.pool.DataQueue.empty(1,0)
+                nvp.PollPeriod (1,1) double {mustBePositive} = 0.5
+            end
+
+            msg = nvp.Message;
+            if msg == ""
+                msg = "Background task #" + string(future.ID);
+            end
+
+            statusType = "Running";
+            if nvp.Cancellable
+                statusType = "RunningCancellable";
+            end
+
+            % addStatus with one output: no auto-cleanup. The poll
+            % timer / cancel listener manage status lifetime.
+            status = obj.addStatus(statusType, ...
+                "Message", msg, ...
+                "Data", future);
+
+            if ~isempty(nvp.ProgressQueue)
+                afterEach(nvp.ProgressQueue, ...
+                    @(v) statusMgr.Stack.onProgressFromWorker(obj, status, v));
+            end
+
+            pollTimer = timer( ...
+                "ExecutionMode", "fixedSpacing", ...
+                "Period", nvp.PollPeriod, ...
+                "TimerFcn", @(t,~) statusMgr.Stack.pollFutureState(t, obj, status, future));
+            start(pollTimer);
+
+            % If the user (or a view) completes the status, propagate
+            % cancellation to the future and stop the poll timer.
+            addlistener(status, "Completed", ...
+                @(~,~) statusMgr.Stack.onStatusCompletedCancelFuture(future, pollTimer));
+        end
+
+        function [future, status] = runInBackground(obj, fcnHandle, nvp)
+            % Convenience: parfeval + monitorFuture in one call.
+            %
+            %   [future, status] = stack.runInBackground(@myFcn, ...
+            %       Args={a, b}, NumOutputs=1, Message="Loading data");
+            %
+            % To stream progress, create a DataQueue and pass it both
+            % into Args (the worker calls send() on it) and as
+            % ProgressQueue (the monitor listens):
+            %
+            %   q = parallel.pool.DataQueue;
+            %   stack.runInBackground(@workerFcn, ...
+            %       Args={q, x, y}, ProgressQueue=q);
+            %
+            % By default the work runs on the backgroundPool (no
+            % Parallel Computing Toolbox required). Pass Pool=parpool
+            % or any other parallel.Pool to override.
+            arguments
+                obj (1,1) statusMgr.Stack
+                fcnHandle (1,1) function_handle
+                nvp.Args (1,:) cell = {}
+                nvp.NumOutputs (1,1) double {mustBeNonnegative, mustBeInteger} = 1
+                nvp.Pool = backgroundPool
+                nvp.Message (1,1) string = ""
+                nvp.Cancellable (1,1) logical = true
+                nvp.ProgressQueue = parallel.pool.DataQueue.empty(1,0)
+                nvp.PollPeriod (1,1) double {mustBePositive} = 0.5
+            end
+
+            msg = nvp.Message;
+            if msg == ""
+                msg = "Running: " + eraseBetween(func2str(fcnHandle), ...
+                    textBoundary, ")", "Boundaries", "inclusive");
+            end
+
+            future = parfeval(nvp.Pool, fcnHandle, nvp.NumOutputs, nvp.Args{:});
+
+            status = obj.monitorFuture(future, ...
+                Message=msg, ...
+                Cancellable=nvp.Cancellable, ...
+                ProgressQueue=nvp.ProgressQueue, ...
+                PollPeriod=nvp.PollPeriod);
+        end
+
         function varargout = run(obj, fcnHandle, varargin, nvp)
             % Run a function while pushing a Running status onto the
             % stack. By default, errors are caught and pushed as Error
@@ -319,50 +428,34 @@ classdef Stack < statusMgr.internal.StackInterface
                 nvp.CatchWarnings (1,1) logical = true
             end
 
-            fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", ...
-                "Boundaries", "inclusive");
-            [~, statusCleanup] = obj.addStatus("Running", ...
-                "Message", "Running: " + fcnCallStr); %#ok<ASGLU>
-
-            % WarningCapture silences warnings, sets a sentinel via
-            % lastwarn, and restores the prior warning state on delete.
-            captor = statusMgr.util.WarningCapture();
-
-            try
-                if nargout > 0
-                    varargout = cell(1, nargout);
-                    [varargout{:}] = fcnHandle(varargin{:});
-                else
-                    fcnHandle(varargin{:});
-                end
-            catch me
-                if ~nvp.CatchErrors
-                    rethrow(me);
-                end
-                obj.addError(me);
-            end
-
-            if nvp.CatchWarnings
-                [warningMsg, ~] = captor.warning();
-                if warningMsg ~= ""
-                    obj.addStatus("Warning", "Message", warningMsg);
-                end
-            end
-
+            varargout = cell(1, nargout);
+            [varargout{:}] = obj.runWithStatus("Running", false, ...
+                fcnHandle, varargin, nvp.CatchErrors, nvp.CatchWarnings);
         end
 
         function varargout = runCancellable(obj, fcnHandle, varargin, nvp)
             % Like run(), but pushes a RunningCancellable status and
-            % passes a CancellationToken as the FIRST argument to
-            % fcnHandle. A cancel-aware view (e.g. Popup) flips the
-            % token's IsCancelled when the user clicks Cancel; user
-            % code is expected to poll the token and bail out.
+            % passes that Status as the FIRST argument to fcnHandle.
+            % Cancel-aware views (e.g. Popup) call status.complete()
+            % when the user clicks Cancel; user code is expected to
+            % poll status.IsComplete (or listen on Completed) and bail
+            % out gracefully:
             %
-            %   stack.runCancellable(@(token) work(token));
-            %   stack.runCancellable(@(token, x) work(token, x), 42);
+            %   stack.runCancellable(@(status) work(status));
             %
-            % Otherwise behaves identically to run() — same name-value
-            % flags, same warning capture, same status cleanup.
+            %   function work(status)
+            %       for i = 1:N
+            %           if status.IsComplete; return; end
+            %           % ... do step i ...
+            %       end
+            %   end
+            %
+            % While the function is running, status.IsComplete=true
+            % unambiguously means "cancel requested" — the natural-
+            % completion path (the onCleanup created internally) fires
+            % only after fcnHandle returns. Otherwise behaves
+            % identically to run() — same name-value flags, same
+            % warning capture, same status cleanup.
             arguments
                 obj (1,1) statusMgr.Stack
                 fcnHandle (1,1) function_handle
@@ -375,39 +468,58 @@ classdef Stack < statusMgr.internal.StackInterface
                 nvp.CatchWarnings (1,1) logical = true
             end
 
-            token = statusMgr.CancellationToken();
+            varargout = cell(1, nargout);
+            [varargout{:}] = obj.runWithStatus("RunningCancellable", true, ...
+                fcnHandle, varargin, nvp.CatchErrors, nvp.CatchWarnings);
+        end
+
+    end
+
+    methods (Access = protected)
+
+        function varargout = runWithStatus(obj, statusType, passStatusFirst, ...
+                fcnHandle, fcnArgs, catchErrors, catchWarnings)
+            % Shared body of run() and runCancellable(): push a status,
+            % run fcnHandle, capture errors/warnings, clean up.
+            %   statusType        - StatusType to push for the duration
+            %   passStatusFirst   - true to inject the Status as the
+            %                       first arg to fcnHandle (cancellable
+            %                       work uses this to read IsComplete)
+            %   fcnArgs (cell)    - positional args from the caller
 
             fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", ...
                 "Boundaries", "inclusive");
-            % The token rides on the status's Data slot so cancel-aware
-            % views can find it without needing a second channel.
-            [~, statusCleanup] = obj.addStatus("RunningCancellable", ...
-                "Message", "Running: " + fcnCallStr, ...
-                "Data", token); %#ok<ASGLU>
+            [status, statusCleanup] = obj.addStatus(statusType, ...
+                "Message", "Running: " + fcnCallStr); %#ok<ASGLU>
 
+            % WarningCapture silences warnings, sets a sentinel via
+            % lastwarn, and restores the prior warning state on delete.
             captor = statusMgr.util.WarningCapture();
+
+            if passStatusFirst
+                fcnArgs = [{status}, fcnArgs];
+            end
 
             try
                 if nargout > 0
                     varargout = cell(1, nargout);
-                    [varargout{:}] = fcnHandle(token, varargin{:});
+                    [varargout{:}] = fcnHandle(fcnArgs{:});
                 else
-                    fcnHandle(token, varargin{:});
+                    fcnHandle(fcnArgs{:});
                 end
             catch me
-                if ~nvp.CatchErrors
+                if ~catchErrors
                     rethrow(me);
                 end
                 obj.addError(me);
             end
 
-            if nvp.CatchWarnings
+            if catchWarnings
                 [warningMsg, ~] = captor.warning();
                 if warningMsg ~= ""
                     obj.addStatus("Warning", "Message", warningMsg);
                 end
             end
-
         end
 
     end
@@ -513,7 +625,7 @@ classdef Stack < statusMgr.internal.StackInterface
                 return
             end
             for sup = obj.SuppressedIdentifiers
-                if statusMgr.Stack.globMatches(identifier, sup)
+                if statusMgr.util.globMatches(identifier, sup)
                     tf = true;
                     return
                 end
@@ -574,21 +686,6 @@ classdef Stack < statusMgr.internal.StackInterface
 
     methods (Static, Access = private)
 
-        function tf = globMatches(identifier, glob)
-            % Glob match: `*` is any-run-of-characters; other chars
-            % match literally. No `*` in `glob` means an exact match.
-            if ~contains(glob, "*")
-                tf = identifier == glob;
-                return
-            end
-            parts = split(glob, "*");
-            p = parts(1);
-            for i = 2:numel(parts)
-                p = p + wildcardPattern + parts(i);
-            end
-            tf = matches(identifier, p);
-        end
-
         function resolveOnTimeout(weakStatus, defaultValue)
             % requestInput timeout handler. Resolves with the default
             % value only if no view has claimed the request yet
@@ -601,6 +698,62 @@ classdef Stack < statusMgr.internal.StackInterface
             if s.Type == statusMgr.StatusType.RequestingInput
                 s.transitionInputState( ...
                     statusMgr.StatusType.ValueSupplied, defaultValue);
+            end
+        end
+
+        function pollFutureState(pollTimer, stack, status, future)
+            % monitorFuture's poll callback. Stops the timer and
+            % completes the status when the future reaches a terminal
+            % state. Failures are converted into an Error status on
+            % the stack via addError.
+            if ~isvalid(stack) || ~isvalid(status) || ~isvalid(future) ...
+                    || status.IsComplete
+                statusMgr.util.stopTimer(pollTimer);
+                return
+            end
+            terminalStates = ["finished", "failed", "unavailable"];
+            if ~ismember(string(future.State), terminalStates)
+                return
+            end
+            statusMgr.util.stopTimer(pollTimer);
+            if ~isempty(future.Error)
+                stack.addError(future.Error);
+            end
+            status.complete();
+        end
+
+        function onProgressFromWorker(stack, status, value)
+            % Translate a value sent on the progress DataQueue into a
+            % status update. Numeric scalar → Value; string → Message;
+            % struct with Value/Message → both.
+            if ~isvalid(status) || status.IsComplete
+                return
+            end
+            if isnumeric(value) && isscalar(value)
+                stack.updateStatus(status, "Value", double(value));
+            elseif isstring(value) || (ischar(value) && (isrow(value) || isempty(value)))
+                stack.updateStatus(status, "Message", string(value));
+            elseif isstruct(value)
+                args = {};
+                if isfield(value, "Value")
+                    args = [args, {"Value", double(value.Value)}];
+                end
+                if isfield(value, "Message")
+                    args = [args, {"Message", string(value.Message)}];
+                end
+                if ~isempty(args)
+                    stack.updateStatus(status, args{:});
+                end
+            end
+        end
+
+        function onStatusCompletedCancelFuture(future, pollTimer)
+            % If the status is completed externally (e.g. user clicks
+            % Cancel on the StatusBar), stop the poll timer and
+            % cancel any not-yet-finished future.
+            statusMgr.util.stopTimer(pollTimer);
+            if isvalid(future) && ismember(string(future.State), ["queued", "running"])
+                cancel(future);
             end
         end
 

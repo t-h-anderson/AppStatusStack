@@ -91,6 +91,26 @@ classdef tStatus < matlab.unittest.TestCase
                 "statusMgr:Status:invalidTransition")
         end
 
+        function tThrowIfCompleteIsNoOpWhenNotComplete(testCase)
+            S = statusMgr.Status("Running");
+            testCase.verifyWarningFree(@() S.throwIfComplete());
+        end
+
+        function tThrowIfCompleteRaisesAfterComplete(testCase)
+            S = statusMgr.Status("Running");
+            S.complete();
+            testCase.verifyError(@() S.throwIfComplete(), ...
+                "statusMgr:cancelled")
+        end
+
+        function tThrowIfCompleteAcceptsCustomIdentifierAndMessage(testCase)
+            S = statusMgr.Status("Running");
+            S.complete();
+            testCase.verifyError( ...
+                @() S.throwIfComplete("myapp:abort", "User aborted"), ...
+                "myapp:abort")
+        end
+
         function tDeleteFiresCompletedEvent(testCase)
             % Deleting a Status fires the Completed event (IsComplete becomes true).
             S = statusMgr.Status("Running");

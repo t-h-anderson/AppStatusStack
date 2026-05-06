@@ -9,9 +9,8 @@ function results = runAllTests(nvp)
 %   "html"      - navigable multi-file HTML report (default)
 %   "cobertura" - single Cobertura XML file (shareable / CI-friendly)
 arguments
-    nvp.CollectCoverage (1,1) logical = false
     nvp.CoverageFormat (1,1) string ...
-        {mustBeMember(nvp.CoverageFormat, ["html", "cobertura"])} = "html"
+        {mustBeMember(nvp.CoverageFormat, ["none", "html", "cobertura"])} = "html"
 end
 import matlab.unittest.plugins.XMLPlugin
 import matlab.unittest.plugins.CodeCoveragePlugin
@@ -30,17 +29,13 @@ runner = matlab.unittest.TestRunner.withTextOutput(Verbosity=2);
 runner.addPlugin(XMLPlugin.producingJUnitFormat(junitFile));
 
 % Add coverage plugin, if required.
-if nvp.CollectCoverage
-    switch nvp.CoverageFormat
-        case "html"
-            producer = CoverageReport(fullfile(artifactsDir, "coverage"));
-        case "cobertura"
-            producer = CoberturaFormat(fullfile(artifactsDir, "coverage.xml"));
-    end
-    runner.addPlugin(CodeCoveragePlugin.forNamespace("statusMgr", ...
-        MetricLevel="statement", ...
-        IncludingInnerNamespaces=true, ...
-        Producing=producer));
+switch nvp.CoverageFormat
+    case "html"
+        producer = CoverageReport(fullfile(artifactsDir, "coverage"));
+        runner = addProducer(runner, producer);
+    case "cobertura"
+        producer = CoberturaFormat(fullfile(artifactsDir, "coverage.xml"));
+        runner = addProducer(runner, producer);
 end
 
 % Run tests.
@@ -48,5 +43,14 @@ results = runner.run(suite);
 
 % Display results.
 table(results)
+
+end
+
+function runner = addProducer(runner, producer)
+
+runner.addPlugin(CodeCoveragePlugin.forNamespace("statusMgr", ...
+    MetricLevel="mcdc", ...
+    IncludingInnerNamespaces=true, ...
+    Producing=producer));
 
 end

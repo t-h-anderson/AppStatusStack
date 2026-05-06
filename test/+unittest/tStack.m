@@ -513,83 +513,65 @@ classdef tStack < matlab.unittest.TestCase
             testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
-        function tRunCancellablePassesTokenAsFirstArg(testCase)
-            % The wrapped function receives a CancellationToken as its
-            % first argument; subsequent positional args from the call
-            % site are appended after.
+        function tRunCancellablePassesStatusAsFirstArg(testCase)
+            % The wrapped function receives the RunningCancellable
+            % Status as its first argument; positional args from the
+            % call site are appended after.
             S = statusMgr.Stack();
-            seenToken = [];
+            seenStatus = [];
             seenArgs = {};
 
-            S.runCancellable(@(token, a, b) capture(token, a, b), 3, 4);
+            S.runCancellable(@(status, a, b) capture(status, a, b), 3, 4);
 
-            testCase.assertClass(seenToken, "statusMgr.CancellationToken")
+            testCase.assertClass(seenStatus, "statusMgr.Status")
+            testCase.verifyEqual(seenStatus.Type, statusMgr.StatusType.RunningCancellable)
             testCase.verifyEqual(seenArgs, {3, 4})
 
-            function capture(token, a, b)
-                seenToken = token;
+            function capture(status, a, b)
+                seenStatus = status;
                 seenArgs = {a, b};
             end
         end
 
         function tRunCancellablePushesRunningCancellableStatus(testCase)
             % While the function runs, the current status is
-            % RunningCancellable and its Data is the token.
+            % RunningCancellable; after run, the stack is back to Idle.
             S = statusMgr.Stack();
-            tokenAtRunTime = [];
             typeAtRunTime = [];
 
-            S.runCancellable(@(token) capture(token));
+            S.runCancellable(@(status) capture(status));
 
-            testCase.assertClass(tokenAtRunTime, "statusMgr.CancellationToken")
             testCase.verifyEqual(typeAtRunTime, statusMgr.StatusType.RunningCancellable)
             testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Idle)
 
-            function capture(token)
-                tokenAtRunTime = token;
+            function capture(status) %#ok<INUSD>
                 typeAtRunTime = S.CurrentStatus.Type;
             end
         end
 
-        function tRunCancellableTokenObservedByPolling(testCase)
-            % If something cancels the token while the function is
-            % running, the function can poll the token and exit early.
+        function tRunCancellableStatusCompleteObservedByPolling(testCase)
+            % If something completes the status while the function is
+            % running (the cancel signal), the function can poll
+            % status.IsComplete and exit early.
             S = statusMgr.Stack();
             iterationsBeforeCancel = 0;
 
-            S.runCancellable(@(token) loopUntilCancel(token));
+            S.runCancellable(@(status) loopUntilComplete(status));
 
             testCase.verifyGreaterThan(iterationsBeforeCancel, 0)
             testCase.verifyLessThan(iterationsBeforeCancel, 100)
 
-            function loopUntilCancel(token)
+            function loopUntilComplete(status)
                 for i = 1:100
                     if i == 5
-                        % Simulate a view/external trigger calling cancel.
-                        token.cancel();
+                        % Simulate an external cancel signal.
+                        status.complete();
                     end
-                    if token.IsCancellationRequested()
+                    if status.IsComplete
                         iterationsBeforeCancel = i;
                         return
                     end
                 end
-            end
-        end
-
-        function tRunCancellableThrowIfCancellationRequestedRaises(testCase)
-            % throwIfCancellationRequested raises statusMgr:cancelled
-            % once the token has been cancelled. With CatchErrors=true
-            % (default) this becomes an Error status.
-            S = statusMgr.Stack();
-
-            S.runCancellable(@(token) throwAfterCancel(token));
-
-            testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Error)
-            testCase.verifyEqual(S.CurrentStatus.Identifier, "statusMgr:cancelled")
-
-            function throwAfterCancel(token)
-                token.cancel();
-                token.throwIfCancellationRequested();
             end
         end
 

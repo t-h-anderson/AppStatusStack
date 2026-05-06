@@ -230,6 +230,81 @@ classdef tFileLog < matlab.uitest.TestCase
             testCase.verifyEqual(lines(2), "")
         end
 
+        function tJsonLinesFormatProducesParseableRecords(testCase)
+            % Format="json-lines" emits one JSON object per line.
+            import matlab.unittest.constraints.IsFile
+            view = statusMgr.view.FileLog(testCase.Stack, ...
+                LogFolder=testCase.Folder, ...
+                LogFilename="json.log", ...
+                Format="json-lines");
+            testCase.addTeardown(@() delete(view))
+
+            testCase.Stack.addStatus("Info", Identifier="a:b", ...
+                Message="hello", Value=0.5);
+            testCase.Stack.addStatus("Warning", Message="oops");
+
+            logfile = fullfile(testCase.Folder, "json.log");
+            testCase.assertThat(logfile, IsFile)
+            lines = readlines(logfile);
+            % readlines may include a trailing empty line.
+            lines = lines(strlength(lines) > 0);
+            testCase.assertEqual(numel(lines), 2)
+
+            r1 = jsondecode(lines(1));
+            testCase.verifyEqual(string(r1.type), "Info")
+            testCase.verifyEqual(string(r1.identifier), "a:b")
+            testCase.verifyEqual(string(r1.message), "hello")
+            testCase.verifyEqual(r1.value, 0.5)
+
+            r2 = jsondecode(lines(2));
+            testCase.verifyEqual(string(r2.type), "Warning")
+            testCase.verifyEqual(string(r2.message), "oops")
+        end
+
+        function tMaxBytesRotatesLog(testCase)
+            % When a write would push the log past MaxBytes, the
+            % current file is renamed with a "_1" suffix and a fresh
+            % file starts. MaxBytes is intentionally tiny here so each
+            % message triggers a rotation.
+            import matlab.unittest.constraints.IsFile
+            view = statusMgr.view.FileLog(testCase.Stack, ...
+                LogFolder=testCase.Folder, ...
+                LogFilename="rot.log", ...
+                MaxBytes=10, ...
+                IncludeTimestamp=false, IncludeUser=false);
+            testCase.addTeardown(@() delete(view))
+
+            testCase.Stack.addStatus("Info", Message="first message");
+            testCase.Stack.addStatus("Info", Message="second message");
+            testCase.Stack.addStatus("Info", Message="third message");
+
+            current = fullfile(testCase.Folder, "rot.log");
+            rotated1 = fullfile(testCase.Folder, "rot_1.log");
+            rotated2 = fullfile(testCase.Folder, "rot_2.log");
+
+            testCase.assertThat(current, IsFile)
+            testCase.assertThat(rotated1, IsFile)
+            testCase.assertThat(rotated2, IsFile)
+        end
+
+        function tMaxBytesInfNeverRotates(testCase)
+            % Default MaxBytes=Inf keeps everything in one file.
+            import matlab.unittest.constraints.IsFile
+            view = statusMgr.view.FileLog(testCase.Stack, ...
+                LogFolder=testCase.Folder, ...
+                LogFilename="single.log");
+            testCase.addTeardown(@() delete(view))
+
+            for i = 1:5
+                testCase.Stack.addStatus("Info", Message="m" + i);
+            end
+
+            single = fullfile(testCase.Folder, "single.log");
+            rotated = fullfile(testCase.Folder, "single_1.log");
+            testCase.assertThat(single, IsFile)
+            testCase.verifyThat(rotated, ~IsFile)
+        end
+
         function tHandleInputRequestLogsRequest(testCase)
             % FileLog cannot supply interactive input. Its handleInputRequest
             % logs the prompt and leaves the request unclaimed, so

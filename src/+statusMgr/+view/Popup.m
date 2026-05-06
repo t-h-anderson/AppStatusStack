@@ -47,6 +47,8 @@ classdef Popup < statusMgr.internal.view.StatusViewBase
                 nvp.ShowRunning (1,1) logical = true
                 nvp.ShowSuccess (1,1) logical = true
                 nvp.ShowIdle (1,1) logical = false
+                nvp.IncludeIdentifiers (1,:) string = string.empty(1,0)
+                nvp.ExcludeIdentifiers (1,:) string = string.empty(1,0)
             end
 
             % Set view parent and stack properties
@@ -324,17 +326,6 @@ classdef Popup < statusMgr.internal.view.StatusViewBase
             if obj.hasValidProgressDlg() && obj.ProgressDlg.CancelRequested
                 statusMgr.util.stopTimer(obj.CancelTimer);
                 status = obj.ProgressDlgStatus;
-                % If the status is carrying a CancellationToken (it
-                % will be when the work was launched via
-                % Stack.runCancellable), trip it so the running code
-                % can observe the cancel request. We do this BEFORE
-                % completing/removing the status so the running code
-                % sees the cancel flag while its status is still on
-                % the stack.
-                token = status.Data;
-                if isa(token, "statusMgr.CancellationToken") && isvalid(token)
-                    token.cancel();
-                end
                 status.complete();
                 obj.Stack.removeStatus(status);
             end

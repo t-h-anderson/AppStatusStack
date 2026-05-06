@@ -48,6 +48,12 @@ stack = statusMgr.Stack();
 f = uifigure();
 statusMgr.view.Popup(f, stack);
 
+% Inline non-modal status bar — give it a sized container (e.g. a
+% row in your own uigridlayout) and it auto-fills it
+g = uigridlayout(f, [2, 1], "RowHeight", {"1x", 28});
+mainContent = uipanel(g);
+statusMgr.view.StatusBar(g, stack);
+
 % Plain-text output to the command window
 statusMgr.view.CommandWindow(stack);
 
@@ -77,17 +83,49 @@ result = stack.run(@myFunction, CatchErrors=false); % rethrow instead of capturi
 **5. Cooperative cancellation**
 
 ```matlab
-% A CancellationToken is passed as the FIRST argument; user code polls
-% it and bails out gracefully when a cancel-aware view (e.g. the Popup
-% progress dialog Cancel button) trips it.
-stack.runCancellable(@(token) doWork(token));
+% The RunningCancellable Status is passed as the first argument.
+% Cancel-aware views (e.g. the Popup progress dialog Cancel button)
+% call status.complete() when the user requests cancellation; the
+% running function polls status.IsComplete and bails out.
+stack.runCancellable(@(status) doWork(status));
 
-function doWork(token)
+function doWork(status)
     for i = 1:N
-        if token.IsCancellationRequested(); return; end
+        if status.IsComplete; return; end
         % ... do step i ...
     end
 end
+```
+
+**6. Background work (parfeval + DataQueue)**
+
+```matlab
+% Convenience: parfeval on the backgroundPool and monitor the future.
+[future, status] = stack.runInBackground(@myFcn, ...
+    Args={a, b}, NumOutputs=1, Message="Loading data");
+
+% Status is RunningCancellable while the future runs; the StatusBar's
+% Cancel button cancels the future. fetchOutputs gets the result.
+result = fetchOutputs(future);
+
+% Streaming progress: pass a DataQueue both to your worker (so it can
+% send updates) and to runInBackground (so the monitor can listen).
+q = parallel.pool.DataQueue;
+stack.runInBackground(@workerWithProgress, ...
+    Args={q, x}, ProgressQueue=q);
+
+function out = workerWithProgress(q, x)
+    for i = 1:N
+        send(q, i/N);    % numeric → status Value
+        % ... or: send(q, "Step " + i)         % string → Message
+        % ... or: send(q, struct(Value=i/N, Message="Step " + i))
+    end
+    out = ...;
+end
+
+% Or monitor a future you already have:
+future = parfeval(backgroundPool, @longJob, 1, x);
+stack.monitorFuture(future, Message="Long job");
 ```
 
 ### Available status types
@@ -115,8 +153,11 @@ end
   ```
 - **Monitorable classes** — any class that extends `statusMgr.monitorable.Monitorable` can emit statuses that are automatically forwarded to a watching stack.
 - **User input** — request a string from the user through whichever view is active, with a timeout and default fallback.
-- **Cancellation** — `stack.runCancellable(@(token) work(token))` provides a cooperative cancellation token; cancel-aware views flip it, user code polls.
+- **Cancellation** — `stack.runCancellable(@(status) work(status))` runs work cooperatively; cancel-aware views call `status.complete()`, user code polls `status.IsComplete` (or calls `status.throwIfComplete()` for error-style propagation).
 - **Recording view** — `statusMgr.view.RecordingView` captures every status it sees into a `RecordedStatuses` array, useful for activity logs in apps and assertions in tests.
+- **Background work** — `stack.runInBackground(@fcn, ...)` launches a `parfeval` future, pushes a `RunningCancellable` status, streams progress through a `DataQueue`, and converts failures into Error statuses. Cancel-aware views cancel the future. Or use `stack.monitorFuture(future)` for a future you already have.
+- **Per-view filters** — every view supports `IncludeIdentifiers` / `ExcludeIdentifiers` glob lists that complement the stack-level `suppressIdentifier`. Have a CommandWindow show only `myapp:debug:*` while a FileLog records everything.
+- **Structured / rotating logs** — `FileLog` accepts `Format="json-lines"` for one-JSON-object-per-line output, and `MaxBytes` triggers rotation (`Log.txt` → `Log_1.txt`) when the file would otherwise grow without bound.
 
 ## Examples
 

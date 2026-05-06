@@ -72,18 +72,71 @@ classdef tRecordingView < matlab.unittest.TestCase
             testCase.verifyEmpty(view.RecordedStatuses)
         end
 
+        function tIncludeIdentifiersGlobAllowList(testCase)
+            % With IncludeIdentifiers set, only matching statuses are
+            % shown; unidentified statuses are dropped.
+            S = statusMgr.Stack();
+            view = statusMgr.view.RecordingView(S, ...
+                IncludeIdentifiers=["myapp:net:*"]);
+            testCase.addTeardown(@() delete(view))
+
+            S.addStatus("Info", Identifier="myapp:net:slow", Message="kept");
+            S.addStatus("Info", Identifier="myapp:db:slow", Message="dropped");
+            S.addStatus("Info", Message="no id, dropped");
+
+            recordedMsgs = [view.RecordedStatuses.Message];
+            testCase.verifyEqual(recordedMsgs, "kept")
+        end
+
+        function tExcludeIdentifiersGlobBlockList(testCase)
+            % With ExcludeIdentifiers, matching statuses are dropped;
+            % everything else (including unidentified) is recorded.
+            S = statusMgr.Stack();
+            view = statusMgr.view.RecordingView(S, ...
+                ExcludeIdentifiers=["*timeout*"]);
+            testCase.addTeardown(@() delete(view))
+
+            S.addStatus("Info", Identifier="myapp:net:timeout", Message="dropped");
+            S.addStatus("Info", Identifier="myapp:db:slow", Message="kept");
+            S.addStatus("Info", Message="kept too");
+
+            recordedMsgs = [view.RecordedStatuses.Message];
+            testCase.verifyEqual(recordedMsgs, ["kept", "kept too"])
+        end
+
+        function tIncludeAndExcludeCombine(testCase)
+            % Include narrows; exclude further removes from that set.
+            S = statusMgr.Stack();
+            view = statusMgr.view.RecordingView(S, ...
+                IncludeIdentifiers=["myapp:*"], ...
+                ExcludeIdentifiers=["*:debug"]);
+            testCase.addTeardown(@() delete(view))
+
+            S.addStatus("Info", Identifier="myapp:net:slow", Message="kept");
+            S.addStatus("Info", Identifier="myapp:net:debug", Message="dropped");
+            S.addStatus("Info", Identifier="other:net:slow", Message="dropped");
+
+            recordedMsgs = [view.RecordedStatuses.Message];
+            testCase.verifyEqual(recordedMsgs, "kept")
+        end
+
         function tRecordsRequestingInputByDefault(testCase)
-            % HandleInputRequests defaults to false on the recorder, so
-            % requestInput times out (no view claims it). The recorder
-            % still observes the RequestingInput status.
+            % HandleInputRequests defaults to true on the recorder, so
+            % the RequestingInput status is fed through handleInputRequest
+            % and recorded. RecordedStatuses holds live handles, and
+            % requestInput's timeout transitions the same Status to
+            % ValueSupplied — overwriting both Type and Message in
+            % place. Title is set once by requestInput and isn't
+            % touched afterwards, so it's the safe field to check.
+            % (See issue #45 for the underlying live-handle design.)
             S = statusMgr.Stack();
             view = statusMgr.view.RecordingView(S);
             testCase.addTeardown(@() delete(view))
 
             S.requestInput("Need value", DefaultValue="x", Timeout=0.1);
 
-            recordedTypes = [view.RecordedStatuses.Type];
-            testCase.verifyTrue(any(recordedTypes == statusMgr.StatusType.RequestingInput))
+            recordedTitles = [view.RecordedStatuses.Title];
+            testCase.verifyTrue(any(recordedTitles == "Input Required"))
         end
 
     end
