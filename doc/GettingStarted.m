@@ -102,12 +102,12 @@ myStack.run(@() warning("mywarn:test","hello world warning")); %[output:0446e47d
 % myStack.run(@() warning("test:w","ignored"), CatchWarnings=false);
 %%
 %[text] ## Cooperative cancellation
-%[text] runCancellable wraps a function with a RunningCancellable status and passes a CancellationToken as the first argument. A cancel-aware view (e.g. the Popup progress dialog Cancel button) flips the token; user code is expected to poll it and exit gracefully. Use throwIfCancellationRequested to raise statusMgr:cancelled if you prefer error-style propagation.
-% myStack.runCancellable(@(token) doSlowWork(token));
+%[text] runCancellable wraps a function with a RunningCancellable status and passes that Status as the first argument. A cancel-aware view (e.g. the Popup progress dialog Cancel button) calls status.complete(); the running function polls status.IsComplete and exits. While the function is running, IsComplete=true unambiguously means "cancel requested" — the natural-completion path only fires after the function returns.
+% myStack.runCancellable(@(status) doSlowWork(status));
 %
-% function doSlowWork(token)
+% function doSlowWork(status)
 %     for i = 1:100
-%         if token.IsCancellationRequested(); return; end
+%         if status.IsComplete; return; end
 %         pause(0.05);
 %     end
 % end

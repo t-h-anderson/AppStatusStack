@@ -77,14 +77,15 @@ result = stack.run(@myFunction, CatchErrors=false); % rethrow instead of capturi
 **5. Cooperative cancellation**
 
 ```matlab
-% A CancellationToken is passed as the FIRST argument; user code polls
-% it and bails out gracefully when a cancel-aware view (e.g. the Popup
-% progress dialog Cancel button) trips it.
-stack.runCancellable(@(token) doWork(token));
+% The RunningCancellable Status is passed as the first argument.
+% Cancel-aware views (e.g. the Popup progress dialog Cancel button)
+% call status.complete() when the user requests cancellation; the
+% running function polls status.IsComplete and bails out.
+stack.runCancellable(@(status) doWork(status));
 
-function doWork(token)
+function doWork(status)
     for i = 1:N
-        if token.IsCancellationRequested(); return; end
+        if status.IsComplete; return; end
         % ... do step i ...
     end
 end
@@ -115,7 +116,7 @@ end
   ```
 - **Monitorable classes** — any class that extends `statusMgr.monitorable.Monitorable` can emit statuses that are automatically forwarded to a watching stack.
 - **User input** — request a string from the user through whichever view is active, with a timeout and default fallback.
-- **Cancellation** — `stack.runCancellable(@(token) work(token))` provides a cooperative cancellation token; cancel-aware views flip it, user code polls.
+- **Cancellation** — `stack.runCancellable(@(status) work(status))` runs work cooperatively; cancel-aware views call `status.complete()`, user code polls `status.IsComplete` (or listens on the `Completed` event).
 - **Recording view** — `statusMgr.view.RecordingView` captures every status it sees into a `RecordedStatuses` array, useful for activity logs in apps and assertions in tests.
 
 ## Examples

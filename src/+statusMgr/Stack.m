@@ -353,16 +353,27 @@ classdef Stack < statusMgr.internal.StackInterface
 
         function varargout = runCancellable(obj, fcnHandle, varargin, nvp)
             % Like run(), but pushes a RunningCancellable status and
-            % passes a CancellationToken as the FIRST argument to
-            % fcnHandle. A cancel-aware view (e.g. Popup) flips the
-            % token's IsCancelled when the user clicks Cancel; user
-            % code is expected to poll the token and bail out.
+            % passes that Status as the FIRST argument to fcnHandle.
+            % Cancel-aware views (e.g. Popup) call status.complete()
+            % when the user clicks Cancel; user code is expected to
+            % poll status.IsComplete (or listen on Completed) and bail
+            % out gracefully:
             %
-            %   stack.runCancellable(@(token) work(token));
-            %   stack.runCancellable(@(token, x) work(token, x), 42);
+            %   stack.runCancellable(@(status) work(status));
             %
-            % Otherwise behaves identically to run() — same name-value
-            % flags, same warning capture, same status cleanup.
+            %   function work(status)
+            %       for i = 1:N
+            %           if status.IsComplete; return; end
+            %           % ... do step i ...
+            %       end
+            %   end
+            %
+            % While the function is running, status.IsComplete=true
+            % unambiguously means "cancel requested" — the natural-
+            % completion path (the onCleanup created here) fires only
+            % after fcnHandle returns. Otherwise behaves identically
+            % to run() — same name-value flags, same warning capture,
+            % same status cleanup.
             arguments
                 obj (1,1) statusMgr.Stack
                 fcnHandle (1,1) function_handle
@@ -375,24 +386,19 @@ classdef Stack < statusMgr.internal.StackInterface
                 nvp.CatchWarnings (1,1) logical = true
             end
 
-            token = statusMgr.CancellationToken();
-
             fcnCallStr = eraseBetween(func2str(fcnHandle), textBoundary, ")", ...
                 "Boundaries", "inclusive");
-            % The token rides on the status's Data slot so cancel-aware
-            % views can find it without needing a second channel.
-            [~, statusCleanup] = obj.addStatus("RunningCancellable", ...
-                "Message", "Running: " + fcnCallStr, ...
-                "Data", token); %#ok<ASGLU>
+            [status, statusCleanup] = obj.addStatus("RunningCancellable", ...
+                "Message", "Running: " + fcnCallStr); %#ok<ASGLU>
 
             captor = statusMgr.util.WarningCapture();
 
             try
                 if nargout > 0
                     varargout = cell(1, nargout);
-                    [varargout{:}] = fcnHandle(token, varargin{:});
+                    [varargout{:}] = fcnHandle(status, varargin{:});
                 else
-                    fcnHandle(token, varargin{:});
+                    fcnHandle(status, varargin{:});
                 end
             catch me
                 if ~nvp.CatchErrors
