@@ -153,19 +153,48 @@ classdef Status < matlab.mixin.SetGet
         end
 
         function tbl = table(objs)
+            % Materialise an array of Status handles into a snapshot
+            % table. Each row captures the field values at call time;
+            % later mutation of the underlying Status (e.g. an input
+            % request transitioning Type / Message) does not change
+            % the row, which is the contract callers like RecordingView
+            % rely on.
 
-            ID = string([objs.ID])';
-            Timestamp = [objs.Timestamp]';
-            User = string([objs.User])';
-            IsVisible = [objs.IsVisible]';
-            Type = string([objs.Type])';
-            Message = string([objs.Message])';
-            Value = [objs.Value]';
-            Data = {objs.Data}';
-            IsTemporary = [objs.IsTemporary]';
-            IsComplete = [objs.IsComplete]';
+            n = numel(objs);
+            ID           = strings(n,1);
+            Identifier   = strings(n,1);
+            Title        = strings(n,1);
+            Timestamp    = NaT(n,1);
+            User         = strings(n,1);
+            IsVisible    = false(n,1);
+            Type         = strings(n,1);
+            Message      = strings(n,1);
+            MessageShort = strings(n,1);
+            Value        = nan(n,1);
+            Data         = cell(n,1);
+            IsTemporary  = false(n,1);
+            IsComplete   = false(n,1);
 
-            tbl = table(ID, Timestamp, User, IsVisible, Type, Message, Value, Data, IsTemporary, IsComplete);
+            for i = 1:n
+                s = objs(i);
+                ID(i)           = s.ID;
+                Identifier(i)   = s.Identifier;
+                Title(i)        = s.Title;
+                Timestamp(i)    = s.Timestamp;
+                User(i)         = s.User;
+                IsVisible(i)    = s.IsVisible;
+                Type(i)         = string(s.Type);
+                Message(i)      = s.Message;
+                MessageShort(i) = s.MessageShort;
+                Value(i)        = s.Value;
+                Data{i}         = s.Data;
+                IsTemporary(i)  = s.IsTemporary;
+                IsComplete(i)   = s.IsComplete;
+            end
+
+            tbl = table(ID, Identifier, Title, Timestamp, User, ...
+                IsVisible, Type, Message, MessageShort, Value, Data, ...
+                IsTemporary, IsComplete);
         end
 
         function delete(objs)
