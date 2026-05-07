@@ -160,37 +160,37 @@ classdef Status < matlab.mixin.SetGet
             % the row, which is the contract callers like RecordingView
             % rely on.
 
-            n = numel(objs);
-            ID           = strings(n,1);
-            Identifier   = strings(n,1);
-            Title        = strings(n,1);
-            Timestamp    = NaT(n,1);
-            User         = strings(n,1);
-            IsVisible    = false(n,1);
-            Type         = strings(n,1);
-            Message      = strings(n,1);
-            MessageShort = strings(n,1);
-            Value        = nan(n,1);
-            Data         = cell(n,1);
-            IsTemporary  = false(n,1);
-            IsComplete   = false(n,1);
-
-            for i = 1:n
-                s = objs(i);
-                ID(i)           = s.ID;
-                Identifier(i)   = s.Identifier;
-                Title(i)        = s.Title;
-                Timestamp(i)    = s.Timestamp;
-                User(i)         = s.User;
-                IsVisible(i)    = s.IsVisible;
-                Type(i)         = string(s.Type);
-                Message(i)      = s.Message;
-                MessageShort(i) = s.MessageShort;
-                Value(i)        = s.Value;
-                Data{i}         = s.Data;
-                IsTemporary(i)  = s.IsTemporary;
-                IsComplete(i)   = s.IsComplete;
+            if isempty(objs)
+                % CSL expansion on an empty array drops type info
+                % (e.g. [objs.IsVisible] -> double []), so seed the
+                % schema explicitly. Keeps vertcat with later non-
+                % empty rows from coercing column types.
+                tbl = table( ...
+                    'Size', [0 13], ...
+                    'VariableTypes', {'string','string','string', ...
+                        'datetime','string','logical','string', ...
+                        'string','string','double','cell','logical', ...
+                        'logical'}, ...
+                    'VariableNames', {'ID','Identifier','Title', ...
+                        'Timestamp','User','IsVisible','Type', ...
+                        'Message','MessageShort','Value','Data', ...
+                        'IsTemporary','IsComplete'});
+                return
             end
+
+            ID           = string([objs.ID])';
+            Identifier   = string([objs.Identifier])';
+            Title        = string([objs.Title])';
+            Timestamp    = [objs.Timestamp]';
+            User         = string([objs.User])';
+            IsVisible    = [objs.IsVisible]';
+            Type         = string([objs.Type])';
+            Message      = string([objs.Message])';
+            MessageShort = string([objs.MessageShort])';
+            Value        = [objs.Value]';
+            Data         = {objs.Data}';
+            IsTemporary  = [objs.IsTemporary]';
+            IsComplete   = [objs.IsComplete]';
 
             tbl = table(ID, Identifier, Title, Timestamp, User, ...
                 IsVisible, Type, Message, MessageShort, Value, Data, ...
