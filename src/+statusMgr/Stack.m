@@ -406,34 +406,34 @@ classdef Stack < statusMgr.internal.StackInterface
                 PollPeriod=nvp.PollPeriod);
         end
 
-        function varargout = run(obj, fcnHandle, varargin, nvp)
+        function varargout = run(obj, fcnHandle, nvp)
             % Run a function while pushing a Running status onto the
             % stack. By default, errors are caught and pushed as Error
             % statuses, and any warning issued during the call is
             % pushed as a Warning status.
             %
             %   stack.run(@myFcn)
-            %   stack.run(@myFcn, arg1, arg2)
+            %   stack.run(@myFcn, Args={arg1, arg2})
             %   stack.run(@myFcn, CatchErrors=false)
-            %   stack.run(@myFcn, arg1, arg2, CatchWarnings=false)
+            %   stack.run(@myFcn, Args={arg1, arg2}, CatchWarnings=false)
+            %
+            % Args is a cell of positional arguments forwarded to
+            % fcnHandle (matching runInBackground's spelling). For a
+            % zero-arg call, omit Args.
             arguments
                 obj (1,1) statusMgr.Stack
                 fcnHandle (1,1) function_handle
-            end
-            arguments (Repeating)
-                varargin
-            end
-            arguments
+                nvp.Args (1,:) cell = {}
                 nvp.CatchErrors (1,1) logical = true
                 nvp.CatchWarnings (1,1) logical = true
             end
 
             varargout = cell(1, nargout);
             [varargout{:}] = obj.runWithStatus("Running", false, ...
-                fcnHandle, varargin, nvp.CatchErrors, nvp.CatchWarnings);
+                fcnHandle, nvp.Args, nvp.CatchErrors, nvp.CatchWarnings);
         end
 
-        function varargout = runCancellable(obj, fcnHandle, varargin, nvp)
+        function varargout = runCancellable(obj, fcnHandle, nvp)
             % Like run(), but pushes a RunningCancellable status and
             % passes that Status as the FIRST argument to fcnHandle.
             % Cancel-aware views (e.g. Popup) call status.complete()
@@ -442,6 +442,8 @@ classdef Stack < statusMgr.internal.StackInterface
             % out gracefully:
             %
             %   stack.runCancellable(@(status) work(status));
+            %   stack.runCancellable(@(status, a, b) work(status, a, b), ...
+            %       Args={a, b});
             %
             %   function work(status)
             %       for i = 1:N
@@ -459,18 +461,14 @@ classdef Stack < statusMgr.internal.StackInterface
             arguments
                 obj (1,1) statusMgr.Stack
                 fcnHandle (1,1) function_handle
-            end
-            arguments (Repeating)
-                varargin
-            end
-            arguments
+                nvp.Args (1,:) cell = {}
                 nvp.CatchErrors (1,1) logical = true
                 nvp.CatchWarnings (1,1) logical = true
             end
 
             varargout = cell(1, nargout);
             [varargout{:}] = obj.runWithStatus("RunningCancellable", true, ...
-                fcnHandle, varargin, nvp.CatchErrors, nvp.CatchWarnings);
+                fcnHandle, nvp.Args, nvp.CatchErrors, nvp.CatchWarnings);
         end
 
     end
