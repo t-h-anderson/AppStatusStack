@@ -153,19 +153,48 @@ classdef Status < matlab.mixin.SetGet
         end
 
         function tbl = table(objs)
+            % Materialise an array of Status handles into a snapshot
+            % table. Each row captures the field values at call time;
+            % later mutation of the underlying Status (e.g. an input
+            % request transitioning Type / Message) does not change
+            % the row, which is the contract callers like RecordingView
+            % rely on.
 
-            ID = string([objs.ID])';
-            Timestamp = [objs.Timestamp]';
-            User = string([objs.User])';
-            IsVisible = [objs.IsVisible]';
-            Type = string([objs.Type])';
-            Message = string([objs.Message])';
-            Value = [objs.Value]';
-            Data = {objs.Data}';
-            IsTemporary = [objs.IsTemporary]';
-            IsComplete = [objs.IsComplete]';
+            if isempty(objs)
+                % CSL expansion on an empty array drops type info
+                % (e.g. [objs.IsVisible] -> double []), so seed the
+                % schema explicitly. Keeps vertcat with later non-
+                % empty rows from coercing column types.
+                tbl = table( ...
+                    'Size', [0 13], ...
+                    'VariableTypes', {'string','string','string', ...
+                        'datetime','string','logical','string', ...
+                        'string','string','double','cell','logical', ...
+                        'logical'}, ...
+                    'VariableNames', {'ID','Identifier','Title', ...
+                        'Timestamp','User','IsVisible','Type', ...
+                        'Message','MessageShort','Value','Data', ...
+                        'IsTemporary','IsComplete'});
+                return
+            end
 
-            tbl = table(ID, Timestamp, User, IsVisible, Type, Message, Value, Data, IsTemporary, IsComplete);
+            ID           = string([objs.ID])';
+            Identifier   = string([objs.Identifier])';
+            Title        = string([objs.Title])';
+            Timestamp    = [objs.Timestamp]';
+            User         = string([objs.User])';
+            IsVisible    = [objs.IsVisible]';
+            Type         = string([objs.Type])';
+            Message      = string([objs.Message])';
+            MessageShort = string([objs.MessageShort])';
+            Value        = [objs.Value]';
+            Data         = {objs.Data}';
+            IsTemporary  = [objs.IsTemporary]';
+            IsComplete   = [objs.IsComplete]';
+
+            tbl = table(ID, Identifier, Title, Timestamp, User, ...
+                IsVisible, Type, Message, MessageShort, Value, Data, ...
+                IsTemporary, IsComplete);
         end
 
         function delete(objs)

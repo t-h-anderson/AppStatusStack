@@ -150,10 +150,14 @@ classdef tStack < matlab.unittest.TestCase
 
             t = S.table();
 
-            testCase.assertSize(t, [3 10])
+            testCase.assertSize(t, [3 13])
             testCase.verifyEqual(t.Type, ["Idle"; "RunningCancellable"; "Warning"])
+            testCase.verifyEqual(t.Message, ["";"S1";"S2"])
             testCase.verifyClass(t.Timestamp, "datetime")
             testCase.verifyClass(t.User, "string")
+            testCase.verifyClass(t.Identifier, "string")
+            testCase.verifyClass(t.Title, "string")
+            testCase.verifyClass(t.MessageShort, "string")
         end
 
         function tAddError(testCase)

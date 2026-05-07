@@ -1,8 +1,12 @@
 classdef RecordingView < statusMgr.internal.view.StatusViewBase
     %RECORDINGVIEW Capture every status update from a Stack.
     %
-    % A non-rendering view that simply appends every Status it sees
-    % into RecordedStatuses. Useful for:
+    % A non-rendering view that materialises every Status it sees into
+    % a row of RecordedStatuses, a MATLAB table. Each row is a snapshot
+    % of the Status at the time it was published; subsequent mutation
+    % of the underlying Status handle does not change earlier rows.
+    %
+    % Useful for:
     %   * tests that want to assert on what was published rather than
     %     poking at internal stack state, and
     %   * apps that want to keep a history (e.g. an "activity log"
@@ -20,10 +24,14 @@ classdef RecordingView < statusMgr.internal.view.StatusViewBase
     %   stack.addStatus("Info", Message="hello");
     %   stack.addStatus("Warning", Message="oops");
     %
-    %   recorder.RecordedStatuses(2).Message  % "oops"
+    %   recorder.RecordedStatuses.Message(2)  % "oops"
 
     properties (SetAccess = protected)
-        RecordedStatuses (1,:) statusMgr.Status = statusMgr.Status.empty(1,0)
+        % Snapshot rows; the schema is whatever statusMgr.Status.table
+        % returns (ID, Identifier, Title, Timestamp, User, IsVisible,
+        % Type, Message, MessageShort, Value, Data, IsTemporary,
+        % IsComplete).
+        RecordedStatuses table
     end
 
     methods
@@ -46,6 +54,7 @@ classdef RecordingView < statusMgr.internal.view.StatusViewBase
                 nvp.IncludeIdentifiers (1,:) string = string.empty(1,0)
                 nvp.ExcludeIdentifiers (1,:) string = string.empty(1,0)
             end
+            obj.RecordedStatuses = obj.emptyRecordTable();
             obj.setStack(stack);
             set(obj, nvp);
         end
@@ -57,7 +66,7 @@ classdef RecordingView < statusMgr.internal.view.StatusViewBase
         function clear(obj)
             % Empty the recorded history. Useful between phases of a
             % test that wants to assert only on what comes next.
-            obj.RecordedStatuses = statusMgr.Status.empty(1,0);
+            obj.RecordedStatuses = obj.emptyRecordTable();
         end
 
     end
@@ -65,7 +74,7 @@ classdef RecordingView < statusMgr.internal.view.StatusViewBase
     methods (Access = protected)
 
         function record(obj, status)
-            obj.RecordedStatuses(end+1) = status;
+            obj.RecordedStatuses = [obj.RecordedStatuses; status.table()];
         end
 
         function displayInfo(obj, status);     obj.record(status); end %#ok<*MANU>
@@ -75,6 +84,17 @@ classdef RecordingView < statusMgr.internal.view.StatusViewBase
         function displaySuccess(obj, status);  obj.record(status); end
         function displayIdle(obj, status);     obj.record(status); end
         function handleInputRequest(obj, status); obj.record(status); end
+
+    end
+
+    methods (Static, Access = protected)
+
+        function tbl = emptyRecordTable()
+            % Produce a 0-row table with the same schema rows are
+            % appended in. Asking Status to materialise an empty array
+            % keeps the column definition in one place.
+            tbl = statusMgr.Status.empty(1,0).table();
+        end
 
     end
 

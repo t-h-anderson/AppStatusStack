@@ -7,6 +7,7 @@ classdef tRecordingView < matlab.unittest.TestCase
             view = statusMgr.view.RecordingView(S);
             testCase.addTeardown(@() delete(view))
 
+            testCase.verifyClass(view.RecordedStatuses, "table")
             testCase.verifyEmpty(view.RecordedStatuses)
         end
 
@@ -19,10 +20,24 @@ classdef tRecordingView < matlab.unittest.TestCase
             S.addStatus("Warning", Message="oops");
             S.addStatus("Success", Message="done");
 
-            testCase.assertSize(view.RecordedStatuses, [1 3])
-            testCase.verifyEqual(view.RecordedStatuses(1).Message, "hello")
-            testCase.verifyEqual(view.RecordedStatuses(2).Message, "oops")
-            testCase.verifyEqual(view.RecordedStatuses(3).Message, "done")
+            testCase.assertSize(view.RecordedStatuses, [3 13])
+            testCase.verifyEqual(view.RecordedStatuses.Message, ...
+                ["hello"; "oops"; "done"])
+        end
+
+        function tRecordsAreSnapshots(testCase)
+            % Mutating the underlying Status after publication does not
+            % change earlier rows: that's the snapshot guarantee the
+            % table representation exists to provide (issue #45).
+            S = statusMgr.Stack();
+            view = statusMgr.view.RecordingView(S);
+            testCase.addTeardown(@() delete(view))
+
+            status = S.addStatus("Info", Message="original");
+            S.updateStatus(status, Message="mutated");
+
+            firstRowMessage = view.RecordedStatuses.Message(1);
+            testCase.verifyEqual(firstRowMessage, "original")
         end
 
         function tHonoursShowFlags(testCase)
@@ -36,9 +51,8 @@ classdef tRecordingView < matlab.unittest.TestCase
             S.addStatus("Warning", Message="w");
             S.addStatus("Error", Message="e");
 
-            recordedTypes = [view.RecordedStatuses.Type];
-            testCase.verifyEqual(recordedTypes, ...
-                [statusMgr.StatusType.Info, statusMgr.StatusType.Error])
+            testCase.verifyEqual(view.RecordedStatuses.Type, ...
+                ["Info"; "Error"])
         end
 
         function tShowIdleOptIn(testCase)
@@ -53,10 +67,10 @@ classdef tRecordingView < matlab.unittest.TestCase
             S.addStatus("Info", Message="hi");
             S.removeAllStatuses(); % returns stack to Idle
 
-            testCase.verifySize(viewDefault.RecordedStatuses, [1 1])
+            testCase.verifySize(viewDefault.RecordedStatuses, [1 13])
             % viewWithIdle saw the Idle pushed at construction-time
             % too via the same listener path.
-            testCase.verifyGreaterThan(numel(viewWithIdle.RecordedStatuses), 1)
+            testCase.verifyGreaterThan(height(viewWithIdle.RecordedStatuses), 1)
         end
 
         function tClearEmptiesHistory(testCase)
@@ -65,11 +79,12 @@ classdef tRecordingView < matlab.unittest.TestCase
             testCase.addTeardown(@() delete(view))
 
             S.addStatus("Info", Message="hi");
-            testCase.assertSize(view.RecordedStatuses, [1 1])
+            testCase.assertSize(view.RecordedStatuses, [1 13])
 
             view.clear();
 
             testCase.verifyEmpty(view.RecordedStatuses)
+            testCase.verifyClass(view.RecordedStatuses, "table")
         end
 
         function tIncludeIdentifiersGlobAllowList(testCase)
@@ -84,8 +99,7 @@ classdef tRecordingView < matlab.unittest.TestCase
             S.addStatus("Info", Identifier="myapp:db:slow", Message="dropped");
             S.addStatus("Info", Message="no id, dropped");
 
-            recordedMsgs = [view.RecordedStatuses.Message];
-            testCase.verifyEqual(recordedMsgs, "kept")
+            testCase.verifyEqual(view.RecordedStatuses.Message, "kept")
         end
 
         function tExcludeIdentifiersGlobBlockList(testCase)
@@ -100,8 +114,8 @@ classdef tRecordingView < matlab.unittest.TestCase
             S.addStatus("Info", Identifier="myapp:db:slow", Message="kept");
             S.addStatus("Info", Message="kept too");
 
-            recordedMsgs = [view.RecordedStatuses.Message];
-            testCase.verifyEqual(recordedMsgs, ["kept", "kept too"])
+            testCase.verifyEqual(view.RecordedStatuses.Message, ...
+                ["kept"; "kept too"])
         end
 
         function tIncludeAndExcludeCombine(testCase)
@@ -116,27 +130,23 @@ classdef tRecordingView < matlab.unittest.TestCase
             S.addStatus("Info", Identifier="myapp:net:debug", Message="dropped");
             S.addStatus("Info", Identifier="other:net:slow", Message="dropped");
 
-            recordedMsgs = [view.RecordedStatuses.Message];
-            testCase.verifyEqual(recordedMsgs, "kept")
+            testCase.verifyEqual(view.RecordedStatuses.Message, "kept")
         end
 
         function tRecordsRequestingInputByDefault(testCase)
             % HandleInputRequests defaults to true on the recorder, so
             % the RequestingInput status is fed through handleInputRequest
-            % and recorded. RecordedStatuses holds live handles, and
-            % requestInput's timeout transitions the same Status to
-            % ValueSupplied — overwriting both Type and Message in
-            % place. Title is set once by requestInput and isn't
-            % touched afterwards, so it's the safe field to check.
-            % (See issue #45 for the underlying live-handle design.)
+            % and recorded. The recorder snapshots Type at record time,
+            % so even though requestInput's timeout transitions the same
+            % Status to ValueSupplied later, the recorded row still
+            % reads RequestingInput. (See issue #45.)
             S = statusMgr.Stack();
             view = statusMgr.view.RecordingView(S);
             testCase.addTeardown(@() delete(view))
 
             S.requestInput("Need value", DefaultValue="x", Timeout=0.1);
 
-            recordedTitles = [view.RecordedStatuses.Title];
-            testCase.verifyTrue(any(recordedTitles == "Input Required"))
+            testCase.verifyTrue(any(view.RecordedStatuses.Type == "RequestingInput"))
         end
 
     end

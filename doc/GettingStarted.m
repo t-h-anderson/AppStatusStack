@@ -127,10 +127,10 @@ myStack.suppressIdentifier("*timeout*")        % anything mentioning timeout
 myStack.unsuppressIdentifier("myapp:network:*") % must match the entry exactly
 %%
 %[text] ## Recording history
-%[text] RecordingView is a non-rendering view that appends every status it receives into RecordedStatuses. Useful for activity-log panels in apps, and for tests that want to assert on what was published rather than poking at internal stack state.
+%[text] RecordingView is a non-rendering view that snapshots every status it receives into RecordedStatuses, a MATLAB table. Each row captures the status's fields at publication time, so later mutation of the underlying Status doesn't change earlier rows. Useful for activity-log panels in apps, and for tests that want to assert on what was published rather than poking at internal stack state.
 recorder = statusMgr.view.RecordingView(myStack);
 myStack.addStatus("Info", Message="hello");
-recorder.RecordedStatuses(end).Message  % "hello"
+recorder.RecordedStatuses.Message(end)  % "hello"
 recorder.clear();  % drop the captured history
 %%
 %[text] ## Per-view filters
