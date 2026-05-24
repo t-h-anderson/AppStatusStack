@@ -26,12 +26,20 @@ classdef RecordingView < statusMgr.internal.view.StatusViewBase
     %
     %   recorder.RecordedStatuses.Message(2)  % "oops"
 
-    properties (SetAccess = protected)
+    properties (SetAccess = protected, Dependent)
         % Snapshot rows; the schema is whatever statusMgr.Status.table
         % returns (ID, Identifier, Title, Timestamp, User, IsVisible,
         % Type, Message, MessageShort, Value, Data, IsTemporary,
-        % IsComplete).
+        % IsComplete). Materialised on read from the per-row cell
+        % store — appending to a table on every status would be
+        % O(N^2) because each push copies the whole table.
         RecordedStatuses table
+    end
+
+    properties (Access = private)
+        % Snapshot rows held individually so append is O(1). Each cell
+        % is a 1-row table produced by Status.table().
+        Rows cell = {}
     end
 
     methods
@@ -54,7 +62,6 @@ classdef RecordingView < statusMgr.internal.view.StatusViewBase
                 nvp.IncludeIdentifiers (1,:) string = string.empty(1,0)
                 nvp.ExcludeIdentifiers (1,:) string = string.empty(1,0)
             end
-            obj.RecordedStatuses = obj.emptyRecordTable();
             obj.setStack(stack);
             set(obj, nvp);
         end
@@ -66,7 +73,15 @@ classdef RecordingView < statusMgr.internal.view.StatusViewBase
         function clear(obj)
             % Empty the recorded history. Useful between phases of a
             % test that wants to assert only on what comes next.
-            obj.RecordedStatuses = obj.emptyRecordTable();
+            obj.Rows = {};
+        end
+
+        function tbl = get.RecordedStatuses(obj)
+            if isempty(obj.Rows)
+                tbl = obj.emptyRecordTable();
+            else
+                tbl = vertcat(obj.Rows{:});
+            end
         end
 
     end
@@ -74,7 +89,7 @@ classdef RecordingView < statusMgr.internal.view.StatusViewBase
     methods (Access = protected)
 
         function record(obj, status)
-            obj.RecordedStatuses = [obj.RecordedStatuses; status.table()];
+            obj.Rows{end+1} = status.table();
         end
 
         function displayInfo(obj, status);     obj.record(status); end %#ok<*MANU>
