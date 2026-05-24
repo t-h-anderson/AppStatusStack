@@ -354,15 +354,25 @@ classdef Stack < statusMgr.internal.StackInterface
                 "Message", msg, ...
                 "Data", future);
 
+            % Wrap obj and status in WeakReferences so the timer /
+            % afterEach closures do not pin the Stack (and via it,
+            % every Status on the stack) alive for the duration of
+            % the future. Without this, clearing the stack handle
+            % from user code couldn't actually GC the stack until
+            % the future ran to completion — same pattern Popup and
+            % CommandWindow already use for their timers.
+            weakStack = matlab.lang.WeakReference(obj);
+            weakStatus = matlab.lang.WeakReference(status);
+
             if ~isempty(nvp.ProgressQueue)
                 afterEach(nvp.ProgressQueue, ...
-                    @(v) statusMgr.Stack.onProgressFromWorker(obj, status, v));
+                    @(v) statusMgr.Stack.onProgressFromWorker(weakStack, weakStatus, v));
             end
 
             pollTimer = timer( ...
                 "ExecutionMode", "fixedSpacing", ...
                 "Period", nvp.PollPeriod, ...
-                "TimerFcn", @(t,~) statusMgr.Stack.pollFutureState(t, obj, status, future));
+                "TimerFcn", @(t,~) statusMgr.Stack.pollFutureState(t, weakStack, weakStatus, future));
             start(pollTimer);
 
             % If the user (or a view) completes the status, propagate
@@ -712,12 +722,18 @@ classdef Stack < statusMgr.internal.StackInterface
             end
         end
 
-        function pollFutureState(pollTimer, stack, status, future)
+        function pollFutureState(pollTimer, weakStack, weakStatus, future)
             % monitorFuture's poll callback. Stops the timer and
             % completes the status when the future reaches a terminal
             % state. Failures are converted into an Error status on
-            % the stack via addError.
-            if ~isvalid(stack) || ~isvalid(status) || ~isvalid(future) ...
+            % the stack via addError. weakStack / weakStatus may
+            % resolve to empty if the user cleared them — in that
+            % case the work behind the future may still complete on
+            % its own; we just stop monitoring.
+            stack = weakStack.Handle;
+            status = weakStatus.Handle;
+            if isempty(stack) || isempty(status) ...
+                    || ~isvalid(stack) || ~isvalid(status) || ~isvalid(future) ...
                     || status.IsComplete
                 statusMgr.util.stopTimer(pollTimer);
                 return
@@ -733,11 +749,15 @@ classdef Stack < statusMgr.internal.StackInterface
             status.complete();
         end
 
-        function onProgressFromWorker(stack, status, value)
+        function onProgressFromWorker(weakStack, weakStatus, value)
             % Translate a value sent on the progress DataQueue into a
             % status update. Numeric scalar → Value; string → Message;
-            % struct with Value/Message → both.
-            if ~isvalid(status) || status.IsComplete
+            % struct with Value/Message → both. If the stack or status
+            % has been GC'd by the user, drop the update silently.
+            stack = weakStack.Handle;
+            status = weakStatus.Handle;
+            if isempty(stack) || isempty(status) ...
+                    || ~isvalid(stack) || ~isvalid(status) || status.IsComplete
                 return
             end
             if isnumeric(value) && isscalar(value)
