@@ -261,6 +261,19 @@ classdef tFileLog < matlab.uitest.TestCase
             testCase.verifyEqual(string(r2.message), "oops")
         end
 
+        function tJsonLinesDefaultFilenameUsesJsonlExtension(testCase)
+            % When LogFilename is not given, Format="json-lines" picks
+            % .jsonl so the file is recognised by jsonl tooling. The
+            % default for "text" is still .txt.
+            view = statusMgr.view.FileLog(testCase.Stack, ...
+                LogFolder=testCase.Folder, ...
+                Format="json-lines");
+            testCase.addTeardown(@() delete(view))
+
+            testCase.verifyTrue(endsWith(view.LogFilename, ".jsonl"), ...
+                "Expected default json-lines filename to end with .jsonl, got " + view.LogFilename)
+        end
+
         function tMaxBytesRotatesLog(testCase)
             % When a write would push the log past MaxBytes, the
             % current file is renamed with a "_1" suffix and a fresh

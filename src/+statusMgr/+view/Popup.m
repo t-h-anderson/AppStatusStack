@@ -179,12 +179,16 @@ classdef Popup < statusMgr.internal.view.StatusViewBase
 
                 removeStatusFn = @(src, event) obj.completeIfClicked(src, event, status);
 
-                % Always offer "Close All". The option list is frozen
-                % into uiconfirm at creation time, so if a second
-                % popup-worthy status fires before this dialog is
-                % dismissed the user would otherwise have no way to
-                % dismiss them in one go.
-                options = ["Close All", "OK"];
+                % Only offer "Close All" when there's actually more
+                % than one alert to dismiss. clearPreviousAlert
+                % dismisses-and-recreates the dialog when a new
+                % popup-worthy status fires, so the offered options
+                % stay in sync with numPopups on every refresh.
+                if numPopups > 1
+                    options = ["Close All", "OK"];
+                else
+                    options = "OK";
+                end
 
                 uiconfirm(obj.Figure, ...
                     status.MessageShort, ...

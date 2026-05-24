@@ -218,6 +218,19 @@ classdef tStatusBar < matlab.uitest.TestCase
             testCase.verifyTrue(contains(html, "second error full"))
         end
 
+        function tPopoutHtmlEscapesAlertText(testCase)
+            % Message / MessageShort come from arbitrary user code
+            % and must not be interpreted as HTML when rendered into
+            % the popout — otherwise a `<` or `&` in an error message
+            % would silently corrupt the layout.
+            testCase.Stack.addStatus("Error", ...
+                Message="x < y && y > 0", MessageShort="bad");
+
+            html = string(testCase.Bar.PopoutText.HTMLSource);
+            testCase.verifyTrue(contains(html, "x &lt; y &amp;&amp; y &gt; 0"))
+            testCase.verifyFalse(contains(html, "x < y && y > 0"))
+        end
+
         function tSingleAlertHidesCloseAll(testCase)
             % With exactly one alert, Close All is not offered (OK
             % alone is sufficient).

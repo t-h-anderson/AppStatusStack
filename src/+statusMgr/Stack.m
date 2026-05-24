@@ -7,7 +7,7 @@ classdef Stack < statusMgr.internal.StackInterface
 
     properties (SetAccess = protected)
         Statuses = statusMgr.Status("Idle")
-        StatusListeners
+        StatusListeners (1,:) event.listener = event.listener.empty(1,0)
         StackMonitorableListeners
     end
 
@@ -29,6 +29,12 @@ classdef Stack < statusMgr.internal.StackInterface
     methods
         function obj = Stack()
             obj.ID = matlab.lang.internal.uuid();
+            % Attach a listener to the default-initialised Idle status.
+            % The property default expression runs through the auto-setter
+            % before the constructor body, so the listener bookkeeping
+            % below has to catch up here.
+            obj.StatusListeners = event.listener(obj.Statuses(1), "Completed", ...
+                @(s,e) obj.onStatusCompleted(s,e));
         end
 
         function delete(obj)
@@ -39,19 +45,12 @@ classdef Stack < statusMgr.internal.StackInterface
 
     methods % get/set
 
-        function set.Statuses(obj, val)
-            obj.Statuses = val;
-            obj.StatusListeners = event.listener(obj.Statuses, "Completed", @(s,e) obj.onStatusCompleted(s,e)); %#ok<MCSUP>
-        end
-
         % Ensure there is always an idle status
         function val = get.Statuses(obj)
             if isempty(obj.Statuses)
-                val = statusMgr.Status("Idle");
-                obj.Statuses = val;
-            else
-                val = obj.Statuses;
+                obj.attachStatus(statusMgr.Status("Idle"));
             end
+            val = obj.Statuses;
         end
 
         % Get the latest status
@@ -160,6 +159,13 @@ classdef Stack < statusMgr.internal.StackInterface
             % Remove test infrastructure
             messageShort = err.message;
 
+            % Trim the extended report at the first frame mentioning
+            % "matlab.unittest" so unit-test stack frames don't drown
+            % the user's actual error. This is a textual heuristic on
+            % MATLAB's report formatting — if the framework is ever
+            % renamed (or user code legitimately contains that string
+            % in a path) the trim would no-op or be wrong. Refine to
+            % a structural marker if that becomes a problem.
             message = getReport(err, "extended");
             message = string(message);
             message = strsplit(message, newline);
@@ -254,6 +260,10 @@ classdef Stack < statusMgr.internal.StackInterface
 
                 toComplete = obj.Statuses(matchingIdx);
                 obj.Statuses(matchingIdx) = [];
+                % StatusListeners is kept parallel to Statuses by
+                % attachStatus; drop the matching slots in lockstep.
+                delete(obj.StatusListeners(matchingIdx));
+                obj.StatusListeners(matchingIdx) = [];
                 toComplete.complete();
 
                 if ~nvp.Silent
@@ -688,8 +698,17 @@ classdef Stack < statusMgr.internal.StackInterface
                 newStatus.IsVisible = false;
             end
 
-            % Add the status
+            % Add the status (and its per-instance Completed listener).
+            obj.attachStatus(newStatus);
+        end
+
+        function attachStatus(obj, newStatus)
+            % Append a Status and start listening for its Completed
+            % event. Per-instance listeners avoid the O(N) rebuild
+            % of the whole listener bundle on every push/pop.
             obj.Statuses = [obj.Statuses, newStatus];
+            obj.StatusListeners(end+1) = event.listener(newStatus, "Completed", ...
+                @(s,e) obj.onStatusCompleted(s,e));
         end
 
         function onStatusCompleted(obj, s, e)
