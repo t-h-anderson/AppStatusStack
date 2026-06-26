@@ -42,6 +42,121 @@ classdef StatusManagerGroup < handle
             obj.Views(idx) = [];
         end
 
+        function views = findViews(obj, nvp)
+            %FINDVIEWS Return views matching a class name and/or instance.
+            %   group.findViews(Class="statusMgr.view.Popup")
+            %   group.findViews(Instance=viewObj)
+            %   group.findViews()  % every view in the group
+            % Class matching uses isa, so subclasses match too. When both
+            % Class and Instance are given a view must satisfy both.
+            arguments
+                obj (1,1)
+                nvp.Class (1,1) string = ""
+                nvp.Instance statusMgr.internal.view.StatusViewInterface ...
+                    {mustBeScalarOrEmpty} = ...
+                    statusMgr.internal.view.StatusViewInterface.empty(1,0)
+            end
+            views = obj.Views(obj.matchMask(nvp.Class, nvp.Instance));
+        end
+
+        function tf = hasView(obj, nvp)
+            %HASVIEW True if any view matches the class name and/or instance.
+            arguments
+                obj (1,1)
+                nvp.Class (1,1) string = ""
+                nvp.Instance statusMgr.internal.view.StatusViewInterface ...
+                    {mustBeScalarOrEmpty} = ...
+                    statusMgr.internal.view.StatusViewInterface.empty(1,0)
+            end
+            tf = any(obj.matchMask(nvp.Class, nvp.Instance));
+        end
+
+        function removed = removeViews(obj, nvp)
+            %REMOVEVIEWS Remove views matching a class name and/or instance.
+            %   group.removeViews(Class="statusMgr.view.Popup")
+            %   group.removeViews(Instance=viewObj)
+            %   group.removeViews(Class="...", Delete=true)  % also delete
+            % At least one of Class/Instance must be supplied, to guard
+            % against accidentally clearing every view. Delete=true deletes
+            % the removed view objects (ownership is explicit). Returns the
+            % removed views.
+            arguments
+                obj (1,1)
+                nvp.Class (1,1) string = ""
+                nvp.Instance statusMgr.internal.view.StatusViewInterface ...
+                    {mustBeScalarOrEmpty} = ...
+                    statusMgr.internal.view.StatusViewInterface.empty(1,0)
+                nvp.Delete (1,1) logical = false
+            end
+            if nvp.Class == "" && isempty(nvp.Instance)
+                error("statusMgr:StatusManagerGroup:noMatchCriteria", ...
+                    "removeViews requires a Class and/or Instance to match; " + ...
+                    "refusing to remove every view.");
+            end
+            mask = obj.matchMask(nvp.Class, nvp.Instance);
+            % Logical-mask deletion removes matches in one shot, avoiding
+            % the index-shifting that reverse-order looping guards against.
+            removed = obj.Views(mask);
+            obj.Views(mask) = [];
+            if nvp.Delete
+                delete(removed);
+            end
+        end
+
+        function cleanup = addViewScoped(obj, view, nvp)
+            %ADDVIEWSCOPED Add a view and return an onCleanup that removes it.
+            %   cleanup = group.addViewScoped(view);
+            %   cleanup = group.addViewScoped(view, Delete=true);
+            % The view is connected to this group's Stack (like addView).
+            % When the returned onCleanup is destroyed (cleared or goes out
+            % of scope) only that view instance is removed from the group;
+            % Delete=true also deletes the view object itself.
+            arguments
+                obj (1,1)
+                view (1,1) statusMgr.internal.view.StatusViewInterface
+                nvp.Delete (1,1) logical = false
+            end
+            obj.addView(view);
+            doDelete = nvp.Delete;
+            cleanup = onCleanup(@() ...
+                statusMgr.util.StatusManagerGroup.scopedRemove(obj, view, doDelete));
+        end
+
+    end
+
+    methods (Access = private)
+
+        function mask = matchMask(obj, className, instance)
+            % Row logical mask over obj.Views. A view matches when it
+            % satisfies every supplied criterion (AND). No criteria => all.
+            n = numel(obj.Views);
+            mask = true(1, n);
+            for i = 1:n
+                v = obj.Views(i);
+                if className ~= "" && ~isa(v, className)
+                    mask(i) = false;
+                elseif ~isempty(instance) && v ~= instance
+                    mask(i) = false;
+                end
+            end
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function scopedRemove(group, view, doDelete)
+            % Teardown for addViewScoped's onCleanup. Detach the view from
+            % the group if the group is still alive, then honour the
+            % explicit Delete request regardless of the group's state.
+            if isvalid(group)
+                group.removeViews(Instance=view);
+            end
+            if doDelete && isvalid(view)
+                delete(view);
+            end
+        end
+
     end
 
 end
