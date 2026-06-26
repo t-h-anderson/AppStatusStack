@@ -154,7 +154,7 @@ The enum also defines `RequestingInput`, `AwaitingInput`, and `ValueSupplied`. T
   stack.suppressIdentifier("*timeout*")        % anywhere
   ```
 - **Monitorable classes** — any class that extends `statusMgr.monitorable.Monitorable` can emit statuses that are automatically forwarded to a watching stack.
-- **User input** — request a string from the user through whichever view is active, with a timeout and default fallback.
+- **User input** — request a string from the user through whichever view is active, with a timeout and default fallback. Use `statusMgr.view.InputField` for an inline, non-modal edit field embedded in your app (doubles as a status line: shows the current message read-only, becomes editable when input is requested), or `statusMgr.view.Popup` for a modal dialog.
 - **Cancellation** — `stack.runCancellable(@(status) work(status))` runs work cooperatively; cancel-aware views call `status.complete()`, user code polls `status.IsComplete` (or calls `status.throwIfComplete()` for error-style propagation).
 - **Recording view** — `statusMgr.view.RecordingView` captures every status it sees into a `RecordedStatuses` array, useful for activity logs in apps and assertions in tests.
 - **Background work** — `stack.runInBackground(@fcn, Args={a, b})` launches a `parfeval` future, pushes a `RunningCancellable` status, streams progress through a `DataQueue`, and converts failures into Error statuses. Cancel-aware views cancel the future. Or use `stack.monitorFuture(future)` for a future you already have. (Note: `runInBackground` takes the worker's arguments as a cell via `Args={...}`, whereas the synchronous `stack.run(@fcn, a, b)` takes them positionally.)
