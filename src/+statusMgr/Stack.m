@@ -3,7 +3,7 @@ classdef Stack < statusMgr.internal.StackInterface
     % Use example:
     % statusStack = statusMgr.Stack();
     % [newStatus, cleanObj] = statusStack.addStatus(statusMgr.StatusType.Running, "Initialising");
-    % updateStatusMessage(obj, status, message)
+    % statusStack.updateStatus(newStatus, Message="Working...");
 
     properties (SetAccess = protected)
         Statuses = statusMgr.Status("Idle")
@@ -743,7 +743,17 @@ classdef Stack < statusMgr.internal.StackInterface
                 end
                 if ~isempty(args)
                     stack.updateStatus(status, args{:});
+                else
+                    warning("statusMgr:Stack:unhandledProgressValue", ...
+                        "Progress struct has neither a Value nor a Message " + ...
+                        "field; no update applied. Send a numeric scalar, a " + ...
+                        "string, or a struct with Value and/or Message fields.");
                 end
+            else
+                warning("statusMgr:Stack:unhandledProgressValue", ...
+                    "Progress value of type '%s' (size %s) was ignored. Send a " + ...
+                    "numeric scalar, a string, or a struct with Value and/or " + ...
+                    "Message fields.", class(value), mat2str(size(value)));
             end
         end
 

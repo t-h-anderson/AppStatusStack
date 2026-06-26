@@ -106,6 +106,9 @@ classdef (Abstract) StatusViewBase < ...
         end
 
         function setStack(obj, stack)
+            % Detach from any previous stack before rebinding so a
+            % re-bound view does not keep firing for the old stack.
+            delete(obj.StackListener);
             updateStatusFn = @(src, event) obj.standardDisplay();
             obj.Stack = stack;
             obj.StackListener = listener(stack, "StatusUpdated", updateStatusFn);

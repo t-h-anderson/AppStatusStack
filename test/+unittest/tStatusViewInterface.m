@@ -29,6 +29,25 @@ classdef tStatusViewInterface < matlab.unittest.TestCase
             testCase.verifyWarningFree(@() S.add(s))
         end
 
+        function tRebindingViewDetachesFromPreviousStack(testCase)
+            % Regression for issue #50: setStack must delete the existing
+            % StackListener before rebinding, otherwise a view re-bound to
+            % a second stack keeps firing for the first one too.
+            stackA = statusMgr.Stack();
+            stackB = statusMgr.Stack();
+
+            view = statusMgr.view.RecordingView(stackA);
+            testCase.addTeardown(@() delete(view))
+
+            % Rebind from A to B, then publish on each stack.
+            view.setStack(stackB);
+            stackA.addStatus("Info", Message="from A");
+            stackB.addStatus("Info", Message="from B");
+
+            % Only the second stack's update should have been recorded.
+            testCase.verifyEqual(view.RecordedStatuses.Message, "from B")
+        end
+
         function tHeterogeneousArrayDefaultElementErrors(testCase)
             % matlab.mixin.Heterogeneous calls getDefaultScalarElement when
             % it needs to fill empty slots in a mixed-subclass array.

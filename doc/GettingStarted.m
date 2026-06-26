@@ -89,7 +89,7 @@ status.complete();
 myStack.removeAllStatuses();
 %%
 %[text] You can also set a status stack to monitor a monitorable class
-myObj = statusMgr.demo.Monitorable;
+myObj = statusMgr.demo.DemoMonitorable;
 myStack.monitor(myObj);
 
 myObj.showError("Showing error"); %[output:0347b964]
