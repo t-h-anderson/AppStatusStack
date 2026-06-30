@@ -7,7 +7,7 @@ classdef Stack < statusMgr.internal.StackInterface
 
     properties (SetAccess = protected)
         Statuses = statusMgr.Status("Idle")
-        StatusListeners (1,:) event.listener = event.listener.empty(1,0)
+        StatusListeners
         StackMonitorableListeners
     end
 
@@ -48,7 +48,13 @@ classdef Stack < statusMgr.internal.StackInterface
         % Ensure there is always an idle status
         function val = get.Statuses(obj)
             if isempty(obj.Statuses)
-                obj.attachStatus(statusMgr.Status("Idle"));
+                % Refill inline rather than via attachStatus: attachStatus
+                % reads obj.Statuses, which would re-enter this getter while
+                % the array is still empty and recurse without bound.
+                idle = statusMgr.Status("Idle");
+                obj.Statuses = idle;
+                obj.StatusListeners = event.listener(idle, "Completed", ...
+                    @(s,e) obj.onStatusCompleted(s,e));
             end
             val = obj.Statuses;
         end
