@@ -7,7 +7,7 @@ classdef Popup < statusMgr.internal.view.StatusViewBase
 
     properties (SetAccess = protected)
         CancelListener event.listener
-        CancelTimer timer % Due to know bug - see below
+        CancelTimer timer % Due to known bug - see below
     end
 
     properties (SetAccess = protected)
@@ -15,7 +15,6 @@ classdef Popup < statusMgr.internal.view.StatusViewBase
         ProgressDlgStatus (1,:) statusMgr.Status
 
         HasPopup (1,1) logical = false
-        PopupStatusToKeep (1,:) statusMgr.Status = statusMgr.Status
 
         % Input dialog widgets are held on the view so tests (and any
         % programmatic driver) can interact with them directly.
@@ -47,6 +46,7 @@ classdef Popup < statusMgr.internal.view.StatusViewBase
                 nvp.ShowRunning (1,1) logical = true
                 nvp.ShowSuccess (1,1) logical = true
                 nvp.ShowIdle (1,1) logical = false
+                nvp.HandleInputRequests (1,1) logical = true
                 nvp.IncludeIdentifiers (1,:) string = string.empty(1,0)
                 nvp.ExcludeIdentifiers (1,:) string = string.empty(1,0)
             end

@@ -1,4 +1,4 @@
-classdef Monitorable < statusMgr.monitorable.Monitorable
+classdef DemoMonitorable < statusMgr.monitorable.Monitorable
     
     methods
         

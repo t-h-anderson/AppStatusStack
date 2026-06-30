@@ -23,6 +23,16 @@ classdef StatusManager < handle
     %   statusMgr.util.StatusManager.addFileLog("MyGroup", LogFolder="/logs")
     %   statusMgr.util.StatusManager.addView("MyGroup", existingView)
     %   statusMgr.util.StatusManager.removeView("MyGroup", idx)
+    %
+    % Querying and removing views by class or instance:
+    %   views   = statusMgr.util.StatusManager.findViews("MyGroup", Class="statusMgr.view.Popup")
+    %   tf      = statusMgr.util.StatusManager.hasView("MyGroup", Class="statusMgr.view.Popup")
+    %   statusMgr.util.StatusManager.removeViews("MyGroup", Class="statusMgr.view.Popup", Delete=true)
+    %   statusMgr.util.StatusManager.removeViews("MyGroup", Instance=viewObj)
+    %
+    % Scoped registration (auto-removal via onCleanup):
+    %   cleanup = statusMgr.util.StatusManager.addViewScoped("MyGroup", view);
+    %   % ... when `cleanup` is cleared, the view is removed from the group.
 
     properties (Access = private)
         Groups (1,1) dictionary = configureDictionary("string", "statusMgr.util.StatusManagerGroup")
@@ -245,6 +255,63 @@ classdef StatusManager < handle
             end
             smg = statusMgr.util.StatusManager.get(name, Type="StatusManagerGroup");
             smg.removeView(idx);
+        end
+
+        function views = findViews(name, nvp)
+            %FINDVIEWS Return views in a named group matching Class/Instance.
+            %   findViews("MyGroup", Class="statusMgr.view.Popup")
+            %   findViews("MyGroup", Instance=viewObj)
+            arguments
+                name (1,1) string = "Default"
+                nvp.Class (1,1) string = ""
+                nvp.Instance statusMgr.internal.view.StatusViewInterface ...
+                    {mustBeScalarOrEmpty} = ...
+                    statusMgr.internal.view.StatusViewInterface.empty(1,0)
+            end
+            smg = statusMgr.util.StatusManager.get(name, Type="StatusManagerGroup");
+            views = smg.findViews(Class=nvp.Class, Instance=nvp.Instance);
+        end
+
+        function tf = hasView(name, nvp)
+            %HASVIEW True if a named group has a view matching Class/Instance.
+            arguments
+                name (1,1) string = "Default"
+                nvp.Class (1,1) string = ""
+                nvp.Instance statusMgr.internal.view.StatusViewInterface ...
+                    {mustBeScalarOrEmpty} = ...
+                    statusMgr.internal.view.StatusViewInterface.empty(1,0)
+            end
+            smg = statusMgr.util.StatusManager.get(name, Type="StatusManagerGroup");
+            tf = smg.hasView(Class=nvp.Class, Instance=nvp.Instance);
+        end
+
+        function removed = removeViews(name, nvp)
+            %REMOVEVIEWS Remove views matching Class/Instance from a group.
+            %   removeViews("MyGroup", Class="statusMgr.view.Popup", Delete=true)
+            %   removeViews("MyGroup", Instance=viewObj)
+            arguments
+                name (1,1) string = "Default"
+                nvp.Class (1,1) string = ""
+                nvp.Instance statusMgr.internal.view.StatusViewInterface ...
+                    {mustBeScalarOrEmpty} = ...
+                    statusMgr.internal.view.StatusViewInterface.empty(1,0)
+                nvp.Delete (1,1) logical = false
+            end
+            smg = statusMgr.util.StatusManager.get(name, Type="StatusManagerGroup");
+            removed = smg.removeViews(Class=nvp.Class, Instance=nvp.Instance, Delete=nvp.Delete);
+        end
+
+        function cleanup = addViewScoped(name, view, nvp)
+            %ADDVIEWSCOPED Add a view to a group; return a removal onCleanup.
+            %   cleanup = addViewScoped("MyGroup", view);
+            %   cleanup = addViewScoped("MyGroup", view, Delete=true);
+            arguments
+                name (1,1) string
+                view (1,1) statusMgr.internal.view.StatusViewInterface
+                nvp.Delete (1,1) logical = false
+            end
+            smg = statusMgr.util.StatusManager.get(name, Type="StatusManagerGroup");
+            cleanup = smg.addViewScoped(view, Delete=nvp.Delete);
         end
 
     end

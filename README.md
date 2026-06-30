@@ -141,6 +141,8 @@ stack.monitorFuture(future, Message="Long job");
 | `Info` | Alert dialog with info icon |
 | `Idle` | Clears any active dialog (default state) |
 
+The enum also defines `RequestingInput`, `AwaitingInput`, and `ValueSupplied`. These are **transitional, internal states** used to drive the user-input handshake (see *User input* below) and are marked `Hidden` on `statusMgr.StatusType` — do not push them directly.
+
 ### Key features
 
 - **Stack semantics** — statuses stack; removing the top status reveals the one beneath, so nested operations compose naturally.
@@ -153,10 +155,10 @@ stack.monitorFuture(future, Message="Long job");
   stack.suppressIdentifier("*timeout*")        % anywhere
   ```
 - **Monitorable classes** — any class that extends `statusMgr.monitorable.Monitorable` can emit statuses that are automatically forwarded to a watching stack.
-- **User input** — request a string from the user through whichever view is active, with a timeout and default fallback.
+- **User input** — request a string from the user through whichever view is active, with a timeout and default fallback. Use `statusMgr.view.InputField` for an inline, non-modal edit field embedded in your app (doubles as a status line: shows the current message read-only, becomes editable when input is requested), or `statusMgr.view.Popup` for a modal dialog.
 - **Cancellation** — `stack.runCancellable(@(status) work(status))` runs work cooperatively; cancel-aware views call `status.complete()`, user code polls `status.IsComplete` (or calls `status.throwIfComplete()` for error-style propagation).
 - **Recording view** — `statusMgr.view.RecordingView` captures every status it sees into a `RecordedStatuses` array, useful for activity logs in apps and assertions in tests.
-- **Background work** — `stack.runInBackground(@fcn, ...)` launches a `parfeval` future, pushes a `RunningCancellable` status, streams progress through a `DataQueue`, and converts failures into Error statuses. Cancel-aware views cancel the future. Or use `stack.monitorFuture(future)` for a future you already have.
+- **Background work** — `stack.runInBackground(@fcn, Args={a, b})` launches a `parfeval` future, pushes a `RunningCancellable` status, streams progress through a `DataQueue`, and converts failures into Error statuses. Cancel-aware views cancel the future. Or use `stack.monitorFuture(future)` for a future you already have. (Note: `runInBackground` takes the worker's arguments as a cell via `Args={...}`, whereas the synchronous `stack.run(@fcn, a, b)` takes them positionally.)
 - **Per-view filters** — every view supports `IncludeIdentifiers` / `ExcludeIdentifiers` glob lists that complement the stack-level `suppressIdentifier`. Have a CommandWindow show only `myapp:debug:*` while a FileLog records everything.
 - **Structured / rotating logs** — `FileLog` accepts `Format="json-lines"` for one-JSON-object-per-line output, and `MaxBytes` triggers rotation (`Log.txt` → `Log_1.txt`) when the file would otherwise grow without bound.
 

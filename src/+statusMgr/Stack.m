@@ -3,7 +3,7 @@ classdef Stack < statusMgr.internal.StackInterface
     % Use example:
     % statusStack = statusMgr.Stack();
     % [newStatus, cleanObj] = statusStack.addStatus(statusMgr.StatusType.Running, "Initialising");
-    % updateStatusMessage(obj, status, message)
+    % statusStack.updateStatus(newStatus, Message="Working...");
 
     properties (SetAccess = protected)
         Statuses = statusMgr.Status("Idle")
@@ -320,6 +320,12 @@ classdef Stack < statusMgr.internal.StackInterface
             % seconds, default 0.5) on future.State so we catch both
             % success and failure uniformly — afterEach/afterAll fire
             % only on success.
+            %
+            % Pass Message to give the status a meaningful label; this is
+            % recommended because monitorFuture only has the future (not
+            % the function handle) to fall back on. Without it the status
+            % shows a generic "Background task". (runInBackground, which
+            % does have the handle, derives a label from it automatically.)
             arguments
                 obj (1,1) statusMgr.Stack
                 future (1,1) parallel.Future
@@ -331,7 +337,10 @@ classdef Stack < statusMgr.internal.StackInterface
 
             msg = nvp.Message;
             if msg == ""
-                msg = "Background task #" + string(future.ID);
+                % No useful handle here; future.ID is a session-scoped
+                % integer that means nothing to end users, so use a plain
+                % generic label and let callers supply a real Message.
+                msg = "Background task";
             end
 
             statusType = "Running";
@@ -367,6 +376,10 @@ classdef Stack < statusMgr.internal.StackInterface
             %
             %   [future, status] = stack.runInBackground(@myFcn, ...
             %       Args={a, b}, NumOutputs=1, Message="Loading data");
+            %
+            % Note the calling convention differs from run(): the worker's
+            % arguments are passed as a cell via Args={...} here, whereas
+            % run() takes them positionally (stack.run(@f, a, b)).
             %
             % To stream progress, create a DataQueue and pass it both
             % into Args (the worker calls send() on it) and as
@@ -741,7 +754,17 @@ classdef Stack < statusMgr.internal.StackInterface
                 end
                 if ~isempty(args)
                     stack.updateStatus(status, args{:});
+                else
+                    warning("statusMgr:Stack:unhandledProgressValue", ...
+                        "Progress struct has neither a Value nor a Message " + ...
+                        "field; no update applied. Send a numeric scalar, a " + ...
+                        "string, or a struct with Value and/or Message fields.");
                 end
+            else
+                warning("statusMgr:Stack:unhandledProgressValue", ...
+                    "Progress value of type '%s' (size %s) was ignored. Send a " + ...
+                    "numeric scalar, a string, or a struct with Value and/or " + ...
+                    "Message fields.", class(value), mat2str(size(value)));
             end
         end
 

@@ -231,6 +231,57 @@ classdef tStatusManager < matlab.unittest.TestCase
             testCase.assertSize(views, [1 0])
         end
 
+        % --- findViews / hasView / removeViews / addViewScoped --------------
+
+        function tFindViewsByClass(testCase)
+            statusMgr.util.StatusManager.make("MyGroup");
+            statusMgr.util.StatusManager.addCommandWindow("MyGroup");
+
+            found = statusMgr.util.StatusManager.findViews("MyGroup", ...
+                Class="statusMgr.view.CommandWindow");
+            testCase.assertSize(found, [1 1])
+            testCase.assertClass(found(1), 'statusMgr.view.CommandWindow')
+        end
+
+        function tHasView(testCase)
+            statusMgr.util.StatusManager.make("MyGroup");
+            statusMgr.util.StatusManager.addCommandWindow("MyGroup");
+
+            testCase.verifyTrue(statusMgr.util.StatusManager.hasView("MyGroup", ...
+                Class="statusMgr.view.CommandWindow"))
+            testCase.verifyFalse(statusMgr.util.StatusManager.hasView("MyGroup", ...
+                Class="statusMgr.view.Popup"))
+        end
+
+        function tRemoveViewsByClassWithDelete(testCase)
+            statusMgr.util.StatusManager.make("MyGroup");
+            statusMgr.util.StatusManager.addCommandWindow("MyGroup");
+            view = statusMgr.util.StatusManager.get("MyGroup", Type="Views");
+
+            statusMgr.util.StatusManager.removeViews("MyGroup", ...
+                Class="statusMgr.view.CommandWindow", Delete=true);
+
+            views = statusMgr.util.StatusManager.get("MyGroup", Type="Views");
+            testCase.assertSize(views, [1 0])
+            testCase.verifyFalse(isvalid(view(1)))
+        end
+
+        function tAddViewScopedRemovesOnCleanup(testCase)
+            stack = statusMgr.util.StatusManager.make("MyGroup");
+            view = statusMgr.view.CommandWindow(stack);
+            testCase.addTeardown(@() delete(view))
+
+            cleanup = statusMgr.util.StatusManager.addViewScoped("MyGroup", view);
+            testCase.assertSize( ...
+                statusMgr.util.StatusManager.get("MyGroup", Type="Views"), [1 1])
+
+            clear cleanup
+
+            testCase.assertSize( ...
+                statusMgr.util.StatusManager.get("MyGroup", Type="Views"), [1 0])
+            testCase.verifyTrue(isvalid(view))
+        end
+
         % --- singleton and Stack sharing ------------------------------------
 
         function tGetReturnsSameStackAcrossCalls(testCase)

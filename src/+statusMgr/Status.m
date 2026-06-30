@@ -4,6 +4,12 @@ classdef Status < matlab.mixin.SetGet
     properties (SetAccess = protected)
         Identifier (1,1) string = "" % Semantic identified, for filtering/suppression
         Type (1,1) statusMgr.StatusType = statusMgr.StatusType.Idle
+        % Message is the canonical text. Views render Message by default;
+        % MessageShort is an optional shorter form that views with limited
+        % space may prefer (e.g. the StatusBar's inline alert label, or a
+        % Popup alert). When MessageShort is unset (the string(NaN)
+        % default) those views fall back to Message, so always populate
+        % Message and only set MessageShort when a condensed label helps.
         Message (1,1) string = ""
         Title (1,1) string = ""
         MessageShort (1,1) string = string(NaN)

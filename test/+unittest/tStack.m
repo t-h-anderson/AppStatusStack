@@ -391,7 +391,7 @@ classdef tStack < matlab.unittest.TestCase
             % If a monitorable class calls setStatus within its code it
             % gets picked up by the status stack.
             S = statusMgr.Stack();
-            obj = statusMgr.demo.Monitorable;
+            obj = statusMgr.demo.DemoMonitorable;
             S.monitor(obj);
 
             obj.showError("test");
@@ -609,7 +609,7 @@ classdef tStack < matlab.unittest.TestCase
             % Stack.delete must dispose of StackMonitorableListeners as well
             % as StatusListeners; otherwise monitorable listeners leak.
             S = statusMgr.Stack();
-            obj = statusMgr.demo.Monitorable;
+            obj = statusMgr.demo.DemoMonitorable;
             S.monitor(obj);
 
             listeners = S.StackMonitorableListeners;
