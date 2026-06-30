@@ -15,8 +15,12 @@ classdef (Abstract) StatusViewBase < ...
     end
 
     properties (SetAccess = protected)
-        IncomingStatus (1,1) statusMgr.Status = statusMgr.Status
-        PreviousStatus (1,1) statusMgr.Status = statusMgr.Status
+        % Empty (not a default-constructed Status) so the class doesn't
+        % hold a shared Status instance alive for the whole session, which
+        % warns at teardown once the path is gone. standardDisplay assigns
+        % the real status before any display method reads it.
+        IncomingStatus (1,:) statusMgr.Status {mustBeScalarOrEmpty} = statusMgr.Status.empty(1,0)
+        PreviousStatus (1,:) statusMgr.Status {mustBeScalarOrEmpty} = statusMgr.Status.empty(1,0)
     end
 
     properties

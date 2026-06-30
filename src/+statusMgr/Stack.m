@@ -6,7 +6,13 @@ classdef Stack < statusMgr.internal.StackInterface
     % statusStack.updateStatus(newStatus, Message="Working...");
 
     properties (SetAccess = protected)
-        Statuses = statusMgr.Status("Idle")
+        % Empty default rather than statusMgr.Status("Idle"): a handle
+        % object used as a property default is constructed once at class
+        % load and shared by every instance (and never freed until the
+        % class is cleared, which warns at session teardown when the path
+        % is already gone). get.Statuses lazily refills the Idle default
+        % per instance instead.
+        Statuses = statusMgr.Status.empty(1,0)
         StatusListeners
         StackMonitorableListeners
     end
@@ -29,11 +35,9 @@ classdef Stack < statusMgr.internal.StackInterface
     methods
         function obj = Stack()
             obj.ID = matlab.lang.internal.uuid();
-            % Attach a listener to the default-initialised Idle status.
-            % The property default expression runs through the auto-setter
-            % before the constructor body, so the listener bookkeeping
-            % below has to catch up here.
-            obj.StatusListeners = obj.makeCompletedListener(obj.Statuses(1));
+            % Statuses (and its parallel StatusListeners) are populated
+            % lazily by get.Statuses, which refills the Idle default and
+            % attaches its listener on first access — nothing to wire here.
         end
 
         function delete(obj)

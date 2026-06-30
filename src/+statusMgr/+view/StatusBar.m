@@ -209,7 +209,7 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             % The most recent visible status is what the bar is showing;
             % completing it signals cancel to runCancellable's user code.
             s = obj.IncomingStatus;
-            if isvalid(s) && ~s.IsComplete
+            if isscalar(s) && isvalid(s) && ~s.IsComplete
                 s.complete();
             end
         end
@@ -218,7 +218,7 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             % Acknowledge an error/warning/success — completes the
             % status and removes it from the stack.
             s = obj.IncomingStatus;
-            if isvalid(s) && ~s.IsComplete
+            if isscalar(s) && isvalid(s) && ~s.IsComplete
                 s.complete();
             end
         end
