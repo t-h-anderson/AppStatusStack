@@ -335,7 +335,8 @@ classdef tPopupView < matlab.uitest.TestCase
             % can push statuses to the same figure.
             testCase.Stack.addStatus("Warning", Message="warning");
             newStack = statusMgr.Stack();
-            statusMgr.view.Popup(testCase.Figure, newStack);
+            newPopup = statusMgr.view.Popup(testCase.Figure, newStack);
+            testCase.addTeardown(@() delete(newPopup))
 
             stackArray = [testCase.Stack, newStack];
             stackArray.addStatus("Error", Message="error");
@@ -355,7 +356,8 @@ classdef tPopupView < matlab.uitest.TestCase
             newStack = statusMgr.Stack();
             newFigure = figure();
             testCase.addTeardown(@delete, newFigure);
-            statusMgr.view.Popup(newFigure, newStack);
+            newPopup = statusMgr.view.Popup(newFigure, newStack);
+            testCase.addTeardown(@() delete(newPopup))
 
             stackArray = [testCase.Stack, newStack];
             stackArray.addStatus("Running", Message="message 1", Value=0.1);

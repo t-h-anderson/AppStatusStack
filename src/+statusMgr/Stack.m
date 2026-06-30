@@ -33,8 +33,7 @@ classdef Stack < statusMgr.internal.StackInterface
             % The property default expression runs through the auto-setter
             % before the constructor body, so the listener bookkeeping
             % below has to catch up here.
-            obj.StatusListeners = event.listener(obj.Statuses(1), "Completed", ...
-                @(s,e) obj.onStatusCompleted(s,e));
+            obj.StatusListeners = obj.makeCompletedListener(obj.Statuses(1));
         end
 
         function delete(obj)
@@ -53,8 +52,7 @@ classdef Stack < statusMgr.internal.StackInterface
                 % the array is still empty and recurse without bound.
                 idle = statusMgr.Status("Idle");
                 obj.Statuses = idle;
-                obj.StatusListeners = event.listener(idle, "Completed", ...
-                    @(s,e) obj.onStatusCompleted(s,e));
+                obj.StatusListeners = obj.makeCompletedListener(idle);
             end
             val = obj.Statuses;
         end
@@ -310,7 +308,13 @@ classdef Stack < statusMgr.internal.StackInterface
                 obj (1,1) statusMgr.Stack
                 monitorable (1,1) statusMgr.monitorable.Monitorable
             end
-            obj.StackMonitorableListeners(end+1) = event.listener(monitorable, "StatusChanged", @(s,e) obj.onMonitorableStatusChanged(s,e));
+            % Weak Stack ref in the callback, as in makeCompletedListener:
+            % the Stack owns this listener, so capturing the Stack strongly
+            % would form a cycle that defers collection to session end.
+            weakStack = matlab.lang.WeakReference(obj);
+            obj.StackMonitorableListeners(end+1) = event.listener(monitorable, ...
+                "StatusChanged", ...
+                @(s,e) statusMgr.Stack.onMonitorableStatusChangedFromWeak(weakStack, s, e));
         end
 
         function status = monitorFuture(obj, future, nvp)
@@ -713,8 +717,20 @@ classdef Stack < statusMgr.internal.StackInterface
             % event. Per-instance listeners avoid the O(N) rebuild
             % of the whole listener bundle on every push/pop.
             obj.Statuses = [obj.Statuses, newStatus];
-            obj.StatusListeners(end+1) = event.listener(newStatus, "Completed", ...
-                @(s,e) obj.onStatusCompleted(s,e));
+            obj.StatusListeners(end+1) = obj.makeCompletedListener(newStatus);
+        end
+
+        function lis = makeCompletedListener(obj, status)
+            % Build the Completed listener for a Status. The callback holds
+            % the Stack via a WeakReference so the listener (which the Stack
+            % owns) does not capture the Stack back — that strong cycle is
+            % what kept Stacks alive until session-end cycle GC, producing
+            % the "delete is not defined" destructor warnings at teardown.
+            % The Stack is always rooted elsewhere while in use, so holding
+            % it weakly here does not orphan a live Stack.
+            weakStack = matlab.lang.WeakReference(obj);
+            lis = event.listener(status, "Completed", ...
+                @(s,e) statusMgr.Stack.onStatusCompletedFromWeak(weakStack, s, e));
         end
 
         function onStatusCompleted(obj, s, e)
@@ -731,6 +747,26 @@ classdef Stack < statusMgr.internal.StackInterface
     end
 
     methods (Static, Access = private)
+
+        function onStatusCompletedFromWeak(weakStack, s, e)
+            % Deref the WeakReference set up in makeCompletedListener and
+            % forward to onStatusCompleted. If the Stack has already been
+            % collected there is nothing left to update, so drop the event.
+            stack = weakStack.Handle;
+            if isempty(stack) || ~isvalid(stack)
+                return
+            end
+            stack.onStatusCompleted(s, e);
+        end
+
+        function onMonitorableStatusChangedFromWeak(weakStack, s, e)
+            % Weak-ref counterpart for monitor()'s StatusChanged listener.
+            stack = weakStack.Handle;
+            if isempty(stack) || ~isvalid(stack)
+                return
+            end
+            stack.onMonitorableStatusChanged(s, e);
+        end
 
         function resolveOnTimeout(weakStatus, defaultValue)
             % requestInput timeout handler. Resolves with the default

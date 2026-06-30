@@ -183,6 +183,7 @@ classdef tFileLog < matlab.uitest.TestCase
             newStack = statusMgr.Stack();
             newFileLogView = statusMgr.view.FileLog(newStack, ...
                 LogFolder=testCase.Folder, LogFilename=testCase.FileLogView.LogFilename);
+            testCase.addTeardown(@() delete(newFileLogView))
 
             newStack.addStatus("Info", Message="i1");
 
@@ -219,6 +220,7 @@ classdef tFileLog < matlab.uitest.TestCase
             import matlab.unittest.constraints.IsFile
             newFileLogView = statusMgr.view.FileLog(testCase.Stack, ...
                 LogFilename="test.txt", ShowIdle=true);
+            testCase.addTeardown(@() delete(newFileLogView))
 
             testCase.Stack.addStatus("Idle", Message="i1");
 

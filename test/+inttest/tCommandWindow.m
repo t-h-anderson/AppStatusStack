@@ -84,6 +84,7 @@ classdef tCommandWindow < matlab.uitest.TestCase
             testCase.verifyTrue(ismissing(testCase.CommandWindowView.PreviousMessage))
 
             newview = statusMgr.view.CommandWindow(testCase.Stack, ShowIdle=true);
+            testCase.addTeardown(@() delete(newview))
             testCase.Stack.addStatus("Idle", Message="idle 2");
             testCase.verifyEqual(newview.PreviousMessage, "idle 2");
         end
