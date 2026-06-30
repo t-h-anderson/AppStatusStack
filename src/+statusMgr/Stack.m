@@ -6,7 +6,13 @@ classdef Stack < statusMgr.internal.StackInterface
     % statusStack.updateStatus(newStatus, Message="Working...");
 
     properties (SetAccess = protected)
-        Statuses = statusMgr.Status("Idle")
+        % Empty default rather than statusMgr.Status("Idle"): a handle
+        % object used as a property default is constructed once at class
+        % load and shared by every instance (and never freed until the
+        % class is cleared, which warns at session teardown when the path
+        % is already gone). get.Statuses lazily refills the Idle default
+        % per instance instead.
+        Statuses = statusMgr.Status.empty(1,0)
         StatusListeners
         StackMonitorableListeners
     end
