@@ -107,6 +107,21 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
 
     end
 
+    methods (Static, Access = protected)
+
+        function s = escapeHtml(text)
+            % Minimal HTML escape for status text interpolated into the
+            % popout's HTMLSource. & must be replaced first to avoid
+            % double-escaping the entities introduced by the other
+            % replacements.
+            s = string(text);
+            s = replace(s, "&", "&amp;");
+            s = replace(s, "<", "&lt;");
+            s = replace(s, ">", "&gt;");
+        end
+
+    end
+
     methods (Access = protected)
 
         function buildUI(obj)
@@ -236,26 +251,28 @@ classdef StatusBar < statusMgr.internal.view.StatusViewBase
             alerts = statuses(ismember(types, alertTypes));
         end
 
-        function html = buildAlertsHtml(~, alerts)
+        function html = buildAlertsHtml(obj, alerts)
             % HTML body rendered inside the popout. For one alert,
             % just the message; for several, a list with each
             % alert's Type and MessageShort as a header and Message
             % as a <pre>-formatted body so newlines / stack traces
-            % survive intact.
+            % survive intact. Message / MessageShort come from
+            % arbitrary user code, so they're HTML-escaped before
+            % being interpolated into the markup.
             if isempty(alerts)
                 html = "";
                 return
             end
             if isscalar(alerts)
-                html = "<pre>" + alerts.Message + "</pre>";
+                html = "<pre>" + obj.escapeHtml(alerts.Message) + "</pre>";
                 return
             end
             parts = strings(0,1);
             for i = 1:numel(alerts)
                 a = alerts(i);
-                parts(end+1,1) = "<h4>" + string(a.Type) + ...
-                    ": " + a.MessageShort + "</h4>"; %#ok<AGROW>
-                parts(end+1,1) = "<pre>" + a.Message + "</pre>"; %#ok<AGROW>
+                parts(end+1,1) = "<h4>" + obj.escapeHtml(string(a.Type)) + ...
+                    ": " + obj.escapeHtml(a.MessageShort) + "</h4>"; %#ok<AGROW>
+                parts(end+1,1) = "<pre>" + obj.escapeHtml(a.Message) + "</pre>"; %#ok<AGROW>
                 if i < numel(alerts)
                     parts(end+1,1) = "<hr>"; %#ok<AGROW>
                 end

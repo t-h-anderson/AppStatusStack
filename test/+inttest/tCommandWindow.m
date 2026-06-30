@@ -245,6 +245,36 @@ classdef tCommandWindow < matlab.uitest.TestCase
             testCase.verifyTrue(contains(lines, "."));
         end
 
+        function tInfoMessageWithPercentSignWritesLiterally(testCase)
+            % `%` in a message must NOT be interpreted as a printf format
+            % spec. Pre-fix this would consume an arg / produce garbage.
+            diaryFile = testCase.diaryFixture();
+
+            testCase.Stack.addStatus("Info", Message="100% done, %s %d");
+            diary off
+
+            lines = strjoin(readlines(diaryFile), newline);
+            testCase.verifyTrue(contains(lines, "100% done, %s %d"))
+        end
+
+        function tErrorMessageWithPercentSignWritesLiterally(testCase)
+            diaryFile = testCase.diaryFixture();
+
+            testCase.Stack.addStatus("Error", Message="boom 50% %d");
+            diary off
+
+            lines = strjoin(readlines(diaryFile), newline);
+            testCase.verifyTrue(contains(lines, "Error: boom 50% %d"))
+        end
+
+        function tWarningMessageWithPercentSignFiresWithoutError(testCase)
+            % `warning(id, msg)` treats msg as a format string; a `%`
+            % in user content used to error or produce garbage.
+            fcn = @() testCase.Stack.addStatus("Warning", ...
+                Message="50% off %s", Identifier="a:b");
+            testCase.verifyWarning(fcn, "a:b")
+        end
+
         function tShowRepeatedAsDotsDisabledPrintsFullMessage(testCase)
             % With ShowRepeatedAsDots=false, a repeated message is printed
             % in full instead of being collapsed to a dot.

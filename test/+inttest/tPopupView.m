@@ -274,15 +274,15 @@ classdef tPopupView < matlab.uitest.TestCase
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end
 
-        function tCloseAllAvailableForSinglePopup(testCase)
-            % "Close All" is offered even when only one popup-worthy
-            % status is on the stack. Otherwise the option list, frozen
-            % into uiconfirm at creation time, would not catch up if a
-            % second status arrived before the first was dismissed.
+        function tCloseAllNotOfferedForSinglePopup(testCase)
+            % With exactly one popup-worthy status on the stack,
+            % "Close All" is not offered — only "OK". A second alert
+            % arriving while the first is open triggers a
+            % dismiss-and-recreate via clearPreviousAlert, so the
+            % rebuilt dialog will pick up Close All if it's needed.
             testCase.Stack.addStatus("Error", Message="solo");
 
-            testCase.chooseDialog("uiconfirm", testCase.Figure, "Close All")
-
+            testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
             testCase.assertSize(testCase.Stack.Statuses, [1 1])
             testCase.verifyEqual(testCase.Stack.CurrentStatus.Type, statusMgr.StatusType.Idle)
         end

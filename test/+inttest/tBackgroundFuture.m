@@ -165,6 +165,26 @@ classdef tBackgroundFuture < matlab.unittest.TestCase
             end
         end
 
+        function tMonitorFutureDoesNotPinStack(testCase)
+            % Clearing the user's Stack handle while a future is in
+            % flight must let the stack be GC'd. The poll-timer /
+            % afterEach closures previously captured `obj` strongly,
+            % pinning the stack until the future ran to completion.
+            S = statusMgr.Stack();
+            queue = parallel.pool.DataQueue;
+            f = parfeval(backgroundPool, @() pause(5), 0);
+            testCase.addTeardown(@() cancel(f));
+
+            S.monitorFuture(f, ProgressQueue=queue, PollPeriod=0.05);
+
+            weakS = matlab.lang.WeakReference(S);
+            clear S
+
+            testCase.verifyEmpty(weakS.Handle, ...
+                "monitorFuture closure is pinning the Stack — " + ...
+                "see Stack.monitorFuture WeakReference usage.")
+        end
+
         function tNonCancellableUsesRunningType(testCase)
             S = statusMgr.Stack();
             f = parfeval(backgroundPool, @() 1, 1);

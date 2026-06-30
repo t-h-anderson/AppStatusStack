@@ -37,7 +37,10 @@ classdef FileLog < statusMgr.internal.view.StatusViewBase
                 nvp.IncludeIdentifier (1,1) logical
                 nvp.IncludeValue (1,1) logical
                 nvp.LogFolder (1,1) string {mustBeFolder} = pwd
-                nvp.LogFilename (1,1) string = "Log_" + string(datetime("now", Format="yyyyMMdd_HHmmss")) + ".txt"
+                % Sentinel-default: the real filename depends on Format
+                % (.jsonl for json-lines, .txt otherwise) and Format
+                % isn't known yet here. Resolved in the constructor body.
+                nvp.LogFilename (1,1) string = string(missing)
                 nvp.Format (1,1) string ...
                     {mustBeMember(nvp.Format, ["text", "json-lines"])} = "text"
                 nvp.MaxBytes (1,1) double {mustBePositive} = Inf
@@ -55,6 +58,15 @@ classdef FileLog < statusMgr.internal.view.StatusViewBase
             % Set view parent and stack properties
             obj.setStack(stack);
             set(obj, nvp);
+
+            if ismissing(obj.LogFilename)
+                ext = ".txt";
+                if obj.Format == "json-lines"
+                    ext = ".jsonl";
+                end
+                obj.LogFilename = "Log_" + ...
+                    string(datetime("now", Format="yyyyMMdd_HHmmss")) + ext;
+            end
 
             logfile = fullfile(obj.LogFolder, obj.LogFilename);
             if isfile(logfile) && obj.Format == "text"

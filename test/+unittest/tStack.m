@@ -3,11 +3,15 @@ classdef tStack < matlab.unittest.TestCase
     methods (Test)
 
         function tDefaultStack(testCase)
-            % Check the default properties of a Stack.
+            % Check the default properties of a Stack. The default
+            % Idle status carries its own per-instance Completed
+            % listener, so StatusListeners is a 1-element array
+            % rather than empty.
             S = statusMgr.Stack();
 
             testCase.assertSize(S.Statuses, [1 1]);
-            testCase.assertEmpty(S.StatusListeners);
+            testCase.assertSize(S.StatusListeners, [1 1]);
+            testCase.assertTrue(isvalid(S.StatusListeners));
             testCase.assertEmpty(S.StackMonitorableListeners);
             testCase.verifyEqual(S.Statuses, S.CurrentStatus);
         end

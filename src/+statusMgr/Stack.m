@@ -29,6 +29,12 @@ classdef Stack < statusMgr.internal.StackInterface
     methods
         function obj = Stack()
             obj.ID = matlab.lang.internal.uuid();
+            % Attach a listener to the default-initialised Idle status.
+            % The property default expression runs through the auto-setter
+            % before the constructor body, so the listener bookkeeping
+            % below has to catch up here.
+            obj.StatusListeners = event.listener(obj.Statuses(1), "Completed", ...
+                @(s,e) obj.onStatusCompleted(s,e));
         end
 
         function delete(obj)
@@ -39,19 +45,18 @@ classdef Stack < statusMgr.internal.StackInterface
 
     methods % get/set
 
-        function set.Statuses(obj, val)
-            obj.Statuses = val;
-            obj.StatusListeners = event.listener(obj.Statuses, "Completed", @(s,e) obj.onStatusCompleted(s,e)); %#ok<MCSUP>
-        end
-
         % Ensure there is always an idle status
         function val = get.Statuses(obj)
             if isempty(obj.Statuses)
-                val = statusMgr.Status("Idle");
-                obj.Statuses = val;
-            else
-                val = obj.Statuses;
+                % Refill inline rather than via attachStatus: attachStatus
+                % reads obj.Statuses, which would re-enter this getter while
+                % the array is still empty and recurse without bound.
+                idle = statusMgr.Status("Idle");
+                obj.Statuses = idle;
+                obj.StatusListeners = event.listener(idle, "Completed", ...
+                    @(s,e) obj.onStatusCompleted(s,e));
             end
+            val = obj.Statuses;
         end
 
         % Get the latest status
@@ -160,6 +165,13 @@ classdef Stack < statusMgr.internal.StackInterface
             % Remove test infrastructure
             messageShort = err.message;
 
+            % Trim the extended report at the first frame mentioning
+            % "matlab.unittest" so unit-test stack frames don't drown
+            % the user's actual error. This is a textual heuristic on
+            % MATLAB's report formatting — if the framework is ever
+            % renamed (or user code legitimately contains that string
+            % in a path) the trim would no-op or be wrong. Refine to
+            % a structural marker if that becomes a problem.
             message = getReport(err, "extended");
             message = string(message);
             message = strsplit(message, newline);
@@ -254,6 +266,10 @@ classdef Stack < statusMgr.internal.StackInterface
 
                 toComplete = obj.Statuses(matchingIdx);
                 obj.Statuses(matchingIdx) = [];
+                % StatusListeners is kept parallel to Statuses by
+                % attachStatus; drop the matching slots in lockstep.
+                delete(obj.StatusListeners(matchingIdx));
+                obj.StatusListeners(matchingIdx) = [];
                 toComplete.complete();
 
                 if ~nvp.Silent
@@ -354,15 +370,25 @@ classdef Stack < statusMgr.internal.StackInterface
                 "Message", msg, ...
                 "Data", future);
 
+            % Wrap obj and status in WeakReferences so the timer /
+            % afterEach closures do not pin the Stack (and via it,
+            % every Status on the stack) alive for the duration of
+            % the future. Without this, clearing the stack handle
+            % from user code couldn't actually GC the stack until
+            % the future ran to completion — same pattern Popup and
+            % CommandWindow already use for their timers.
+            weakStack = matlab.lang.WeakReference(obj);
+            weakStatus = matlab.lang.WeakReference(status);
+
             if ~isempty(nvp.ProgressQueue)
                 afterEach(nvp.ProgressQueue, ...
-                    @(v) statusMgr.Stack.onProgressFromWorker(obj, status, v));
+                    @(v) statusMgr.Stack.onProgressFromWorker(weakStack, weakStatus, v));
             end
 
             pollTimer = timer( ...
                 "ExecutionMode", "fixedSpacing", ...
                 "Period", nvp.PollPeriod, ...
-                "TimerFcn", @(t,~) statusMgr.Stack.pollFutureState(t, obj, status, future));
+                "TimerFcn", @(t,~) statusMgr.Stack.pollFutureState(t, weakStack, weakStatus, future));
             start(pollTimer);
 
             % If the user (or a view) completes the status, propagate
@@ -678,8 +704,17 @@ classdef Stack < statusMgr.internal.StackInterface
                 newStatus.IsVisible = false;
             end
 
-            % Add the status
+            % Add the status (and its per-instance Completed listener).
+            obj.attachStatus(newStatus);
+        end
+
+        function attachStatus(obj, newStatus)
+            % Append a Status and start listening for its Completed
+            % event. Per-instance listeners avoid the O(N) rebuild
+            % of the whole listener bundle on every push/pop.
             obj.Statuses = [obj.Statuses, newStatus];
+            obj.StatusListeners(end+1) = event.listener(newStatus, "Completed", ...
+                @(s,e) obj.onStatusCompleted(s,e));
         end
 
         function onStatusCompleted(obj, s, e)
@@ -712,12 +747,18 @@ classdef Stack < statusMgr.internal.StackInterface
             end
         end
 
-        function pollFutureState(pollTimer, stack, status, future)
+        function pollFutureState(pollTimer, weakStack, weakStatus, future)
             % monitorFuture's poll callback. Stops the timer and
             % completes the status when the future reaches a terminal
             % state. Failures are converted into an Error status on
-            % the stack via addError.
-            if ~isvalid(stack) || ~isvalid(status) || ~isvalid(future) ...
+            % the stack via addError. weakStack / weakStatus may
+            % resolve to empty if the user cleared them — in that
+            % case the work behind the future may still complete on
+            % its own; we just stop monitoring.
+            stack = weakStack.Handle;
+            status = weakStatus.Handle;
+            if isempty(stack) || isempty(status) ...
+                    || ~isvalid(stack) || ~isvalid(status) || ~isvalid(future) ...
                     || status.IsComplete
                 statusMgr.util.stopTimer(pollTimer);
                 return
@@ -733,11 +774,15 @@ classdef Stack < statusMgr.internal.StackInterface
             status.complete();
         end
 
-        function onProgressFromWorker(stack, status, value)
+        function onProgressFromWorker(weakStack, weakStatus, value)
             % Translate a value sent on the progress DataQueue into a
             % status update. Numeric scalar → Value; string → Message;
-            % struct with Value/Message → both.
-            if ~isvalid(status) || status.IsComplete
+            % struct with Value/Message → both. If the stack or status
+            % has been GC'd by the user, drop the update silently.
+            stack = weakStack.Handle;
+            status = weakStatus.Handle;
+            if isempty(stack) || isempty(status) ...
+                    || ~isvalid(stack) || ~isvalid(status) || status.IsComplete
                 return
             end
             if isnumeric(value) && isscalar(value)

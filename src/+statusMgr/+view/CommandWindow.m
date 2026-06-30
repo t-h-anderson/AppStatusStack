@@ -93,7 +93,6 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewBase
                     && isa(status.Data, "MException")
 
                 rep = string(status.Data.getReport);
-                rep = strrep(rep, "\", "\\");
                 obj.writeToTerminal(rep, 2);
             else
                 message = "Error: " + status.Message;
@@ -106,7 +105,7 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewBase
                 obj (1,1) statusMgr.view.CommandWindow
                 status (1,1) statusMgr.Status
             end
-            warning(status.Identifier, "Warning: " + status.Message);
+            warning(status.Identifier, "%s", "Warning: " + status.Message);
         end
 
         function displaySuccess(obj, status)
@@ -170,8 +169,9 @@ classdef CommandWindow < statusMgr.internal.view.StatusViewBase
             end
             if message ~= obj.PreviousMessage || ~obj.ShowRepeatedAsDots
                 % First time we've seen this message (or the toggle is
-                % off): print it on its own line.
-                fprintf(id, message + "\n");
+                % off): print it on its own line. "%s" guards against
+                % `%` in user content being interpreted as a format spec.
+                fprintf(id, "%s\n", message);
             else
                 % Same message as last time: collapse to a single "."
                 % so successive identical updates don't spam the terminal.
