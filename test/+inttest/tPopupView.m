@@ -103,10 +103,6 @@ classdef tPopupView < matlab.uitest.TestCase
         function tAddStatusWithCompletionCallback(testCase)
             
             status = testCase.Stack.addStatus("Error", Message="Example error", CompletionFcn=@(status) setTestCaseTempToMessageName(status, testCase));
-            % The CompletionFcn closure (and testCase.TestField) retain this
-            % status past the test; delete it so it doesn't linger to
-            % session teardown.
-            testCase.addTeardown(@() delete(status))
 
             testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
 

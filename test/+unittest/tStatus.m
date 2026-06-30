@@ -57,10 +57,6 @@ classdef tStatus < matlab.unittest.TestCase
             % CompletionFcn is invoked with the status when complete() fires.
             received = [];
             S = statusMgr.Status("Running", CompletionFcn=@(s) completeFunction(s));
-            % The CompletionFcn closure captures this method's workspace
-            % (via the nested function), which holds S — a cycle that would
-            % otherwise keep S alive until session-end GC. Delete explicitly.
-            testCase.addTeardown(@() delete(S))
             S.complete();
 
             testCase.verifyEqual(received, S)
@@ -75,9 +71,6 @@ classdef tStatus < matlab.unittest.TestCase
             % Calling complete() twice does not fire CompletionFcn a second time.
             callCount = 0;
             S = statusMgr.Status("Running", CompletionFcn=@(~) incrementCount());
-            % CompletionFcn closure captures S via the nested function;
-            % delete explicitly so the cycle doesn't outlive the test.
-            testCase.addTeardown(@() delete(S))
 
             S.complete();
             S.complete();
