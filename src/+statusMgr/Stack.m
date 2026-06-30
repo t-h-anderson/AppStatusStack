@@ -35,9 +35,11 @@ classdef Stack < statusMgr.internal.StackInterface
     methods
         function obj = Stack()
             obj.ID = matlab.lang.internal.uuid();
-            % Statuses (and its parallel StatusListeners) are populated
-            % lazily by get.Statuses, which refills the Idle default and
-            % attaches its listener on first access — nothing to wire here.
+            % Attach a listener to the default-initialised Idle status.
+            % The property default expression runs through the auto-setter
+            % before the constructor body, so the listener bookkeeping
+            % below has to catch up here.
+            obj.StatusListeners = obj.makeCompletedListener(obj.Statuses(1));
         end
 
         function delete(obj)
