@@ -486,9 +486,9 @@ classdef tStack < matlab.unittest.TestCase
         end
 
         function tRunCommandWithArguments(testCase)
-            % run() passes varargin through to the function handle.
+            % run() passes Args through to the function handle.
             S = statusMgr.Stack();
-            result = S.run(@(a, b) a + b, 3, 4);
+            result = S.run(@(a, b) a + b, Args={3, 4});
 
             testCase.verifyEqual(result, 7)
             testCase.verifyEqual(S.CurrentStatus.Type, statusMgr.StatusType.Idle)
@@ -519,13 +519,13 @@ classdef tStack < matlab.unittest.TestCase
 
         function tRunCancellablePassesStatusAsFirstArg(testCase)
             % The wrapped function receives the RunningCancellable
-            % Status as its first argument; positional args from the
-            % call site are appended after.
+            % Status as its first argument; Args from the call site
+            % are appended after.
             S = statusMgr.Stack();
             seenStatus = [];
             seenArgs = {};
 
-            S.runCancellable(@(status, a, b) capture(status, a, b), 3, 4);
+            S.runCancellable(@(status, a, b) capture(status, a, b), Args={3, 4});
 
             testCase.assertClass(seenStatus, "statusMgr.Status")
             testCase.verifyEqual(seenStatus.Type, statusMgr.StatusType.RunningCancellable)

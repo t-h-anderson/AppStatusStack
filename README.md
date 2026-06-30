@@ -76,7 +76,8 @@ stack.removeStatus(status);
 **4. Capture errors and warnings automatically**
 
 ```matlab
-result = stack.run(@myFunction);                 % Running → clears on success, Error on failure
+result = stack.run(@myFunction);                    % Running → clears on success, Error on failure
+result = stack.run(@myFunction, Args={a, b});       % positional args via Args (matches runInBackground)
 result = stack.run(@myFunction, CatchErrors=false); % rethrow instead of capturing
 ```
 
