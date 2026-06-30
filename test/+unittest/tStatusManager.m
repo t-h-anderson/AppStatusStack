@@ -12,6 +12,10 @@ classdef tStatusManager < matlab.unittest.TestCase
             % pre-existing singleton completely intact.
             token = statusMgr.util.StatusManager.snapshot();
             testCase.addTeardown(@() statusMgr.util.StatusManager.restore(token))
+            % Runs before the restore above (teardowns are LIFO): dispose
+            % any views the test left in the singleton so they don't linger
+            % to session teardown. restore() then reinstates the snapshot.
+            testCase.addTeardown(@() statusMgr.util.StatusManager.clear())
         end
     end
 

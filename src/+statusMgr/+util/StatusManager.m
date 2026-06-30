@@ -46,6 +46,15 @@ classdef StatusManager < handle
 
     methods (Static, Access = private)
 
+        function disposeGroupViews(smg)
+            % Delete the (still-valid) views held by a group. Used when a
+            % group is removed so its views don't outlive it.
+            if ~isempty(smg) && isvalid(smg)
+                views = smg.Views;
+                delete(views(isvalid(views)));
+            end
+        end
+
         function obj = instance(action)
             %INSTANCE Manage the persistent singleton.
             %   instance()        – get or create
@@ -191,14 +200,25 @@ classdef StatusManager < handle
 
         function clear(name)
             %CLEAR Remove a group by name, or all groups if no name is given.
+            %
+            % A removed group's views are deleted, otherwise each view's
+            % StatusUpdated listener keeps it (and the objects it
+            % references) alive until MATLAB's session-end cycle GC. The
+            % group's Stack is left untouched — callers may still hold the
+            % handle returned by make().
             arguments
                 name (1,1) string = string(nan)
             end
 
             obj = statusMgr.util.StatusManager.instance();
             if ismissing(name)
+                ks = keys(obj.Groups);
+                for i = 1:numel(ks)
+                    statusMgr.util.StatusManager.disposeGroupViews(obj.Groups(ks(i)));
+                end
                 statusMgr.util.StatusManager.instance(true);
             elseif isKey(obj.Groups, name)
+                statusMgr.util.StatusManager.disposeGroupViews(obj.Groups(name));
                 obj.Groups = remove(obj.Groups, name);
             else
                 error("statusMgr:StatusManager:unknownGroup", ...

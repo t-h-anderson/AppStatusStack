@@ -103,6 +103,10 @@ classdef tPopupView < matlab.uitest.TestCase
         function tAddStatusWithCompletionCallback(testCase)
             
             status = testCase.Stack.addStatus("Error", Message="Example error", CompletionFcn=@(status) setTestCaseTempToMessageName(status, testCase));
+            % The CompletionFcn closure (and testCase.TestField) retain this
+            % status past the test; delete it so it doesn't linger to
+            % session teardown.
+            testCase.addTeardown(@() delete(status))
 
             testCase.chooseDialog("uiconfirm", testCase.Figure, "OK")
 
@@ -335,7 +339,8 @@ classdef tPopupView < matlab.uitest.TestCase
             % can push statuses to the same figure.
             testCase.Stack.addStatus("Warning", Message="warning");
             newStack = statusMgr.Stack();
-            statusMgr.view.Popup(testCase.Figure, newStack);
+            newPopup = statusMgr.view.Popup(testCase.Figure, newStack);
+            testCase.addTeardown(@() delete(newPopup))
 
             stackArray = [testCase.Stack, newStack];
             stackArray.addStatus("Error", Message="error");
@@ -355,7 +360,8 @@ classdef tPopupView < matlab.uitest.TestCase
             newStack = statusMgr.Stack();
             newFigure = figure();
             testCase.addTeardown(@delete, newFigure);
-            statusMgr.view.Popup(newFigure, newStack);
+            newPopup = statusMgr.view.Popup(newFigure, newStack);
+            testCase.addTeardown(@() delete(newPopup))
 
             stackArray = [testCase.Stack, newStack];
             stackArray.addStatus("Running", Message="message 1", Value=0.1);
